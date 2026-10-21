@@ -415,8 +415,105 @@ async function run() {
     await sleep(300);
     console.log('PASS: Search, group filter, and reset filters verified.');
 
-    // 12. Check desktop, tablet, and mobile usability + overflow
-    console.log('13. Checking responsive viewports (1440px desktop, 768px tablet, 375px mobile)...');
+    // 13. Monthly Debtor CSV Export verification
+    console.log('13. Verifying Monthly Debtor CSV Export...');
+    // Switch to payments tab
+    await client.eval(`document.querySelector('#nav-tab-payments').click();`);
+    await sleep(300);
+
+    // Track downloaded files in window
+    await client.eval(`
+      window.__downloadedFiles = [];
+      const origCreateObjectURL = URL.createObjectURL;
+      URL.createObjectURL = function(blob) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const uint8 = new Uint8Array(reader.result);
+          const hasBom = uint8[0] === 0xEF && uint8[1] === 0xBB && uint8[2] === 0xBF;
+          const text = new TextDecoder('utf-8').decode(uint8);
+          window.__downloadedFiles.push({
+            content: text,
+            hasBom: hasBom,
+            firstBytes: [uint8[0], uint8[1], uint8[2]],
+            type: blob.type,
+            size: blob.size,
+          });
+        };
+        reader.readAsArrayBuffer(blob);
+        return origCreateObjectURL.call(URL, blob);
+      };
+    `);
+
+    // Verify button is enabled for loaded month
+    const debtorExportEnabled = await client.eval(`!document.querySelector('#btn-export-debtors').disabled`);
+    assert(debtorExportEnabled, 'Debtor export button should be enabled when data is loaded');
+
+    // Click Debtor export
+    await client.eval(`document.querySelector('#btn-export-debtors').click();`);
+    await sleep(500);
+
+    const debtorNotice = await client.eval(`document.querySelector('#notice').textContent`);
+    assert(debtorNotice.includes('Exported debtors-') && debtorNotice.includes('.csv'), `Notice should confirm debtor export: ${debtorNotice}`);
+
+    const downloadedDebtorFile = await client.eval(`window.__downloadedFiles[window.__downloadedFiles.length - 1]`);
+    assert(downloadedDebtorFile, 'Debtor export must have triggered a download');
+    assert(downloadedDebtorFile.hasBom, 'Export must include UTF-8 BOM');
+    assert(downloadedDebtorFile.content.includes('studentId,name,phone,groupName,monthlyFee,paidAmount,debt'), 'Debtors CSV must contain correct headers');
+    console.log('PASS: Monthly Debtor CSV export generated with UTF-8 BOM and correct headers.');
+
+    // Month change disables debtor export until reloaded
+    await client.eval(`
+      const monthInput = document.querySelector('#report-month');
+      monthInput.value = '2025-01';
+      monthInput.dispatchEvent(new Event('input'));
+    `);
+    const debtorExportDisabledOnStale = await client.eval(`document.querySelector('#btn-export-debtors').disabled`);
+    assert(debtorExportDisabledOnStale, 'Debtor export button should be disabled when month input differs from loaded month');
+
+    // Reload restore
+    await client.eval(`document.querySelector('#refresh-debtors').click();`);
+    await sleep(600);
+    const debtorExportReEnabled = await client.eval(`!document.querySelector('#btn-export-debtors').disabled`);
+    assert(debtorExportReEnabled, 'Debtor export button should be re-enabled after refreshing new month');
+    console.log('PASS: Stale month prevention correctly disables Debtor export.');
+
+    // 14. Student Directory CSV Export verification
+    console.log('14. Verifying Student Directory CSV Export with active filters...');
+    // Switch to students tab
+    await client.eval(`document.querySelector('#nav-tab-students').click();`);
+    await sleep(300);
+
+    const studentExportEnabled = await client.eval(`!document.querySelector('#btn-export-students').disabled`);
+    assert(studentExportEnabled, 'Student export button should be enabled');
+
+    // Apply search filter
+    await client.eval(`
+      const searchInput = document.querySelector('#student-search');
+      searchInput.value = 'QA Browser Student 1 Renamed';
+      searchInput.dispatchEvent(new Event('input'));
+    `);
+    await sleep(300);
+
+    // Export filtered students
+    await client.eval(`document.querySelector('#btn-export-students').click();`);
+    await sleep(500);
+
+    const studentNotice = await client.eval(`document.querySelector('#notice').textContent`);
+    assert(studentNotice.includes('Exported students.csv') && studentNotice.includes('respecting active filters'), `Notice should confirm filtered student export: ${studentNotice}`);
+
+    const downloadedStudentFile = await client.eval(`window.__downloadedFiles[window.__downloadedFiles.length - 1]`);
+    assert(downloadedStudentFile, 'Student export must have triggered a download');
+    assert(downloadedStudentFile.hasBom, 'Export must include UTF-8 BOM');
+    assert(downloadedStudentFile.content.includes('id,name,phone,groupName,monthlyFee'), 'Students CSV must contain correct headers');
+    assert(downloadedStudentFile.content.includes('QA Browser Student 1 Renamed'), 'Exported file must contain filtered student');
+    console.log('PASS: Filtered Student Directory CSV export generated with UTF-8 BOM, headers, and active filters.');
+
+    // Reset filters
+    await client.eval(`document.querySelector('#btn-reset-filters').click();`);
+    await sleep(300);
+
+    // 15. Check desktop, tablet, and mobile usability + overflow
+    console.log('15. Checking responsive viewports (1440px desktop, 768px tablet, 375px mobile)...');
     for (const [w, h, name] of [[1440, 900, 'Desktop'], [768, 1024, 'Tablet'], [375, 667, 'Mobile']]) {
       await client.setViewport(w, h);
       await sleep(300);
@@ -439,7 +536,7 @@ async function run() {
       console.log(`PASS: ${name} (${w}px x ${h}px) layout verified without horizontal overflow.`);
     }
 
-    console.log('--- ALL 12 LIVE BROWSER TESTS PASSED SUCCESSFULLY! ---');
+    console.log('--- ALL 15 LIVE BROWSER TESTS PASSED SUCCESSFULLY! ---');
   } finally {
     // Cleanup disposable test records
     console.log('--- Performing disposable data cleanup ---');

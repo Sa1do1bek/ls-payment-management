@@ -1,6 +1,6 @@
 # Frontend
 
-This independent HTML5, Bootstrap 5, and Vanilla JavaScript interface manages enrolled students, displays monthly debtors, and records payments through the existing Spring Boot API. No frontend build step or package installation is required.
+This independent HTML5, Bootstrap 5, and Vanilla JavaScript interface manages enrolled students, displays monthly debtors, records payments, and provides secure client-side CSV reporting through the existing Spring Boot API. No frontend build step or package installation is required.
 
 ## Navigation and Architecture
 
@@ -11,6 +11,7 @@ The user interface provides two primary views accessible via the responsive top 
    - Responsive debtor records (desktop table and mobile card view).
    - Payment recording form with real-time student selection and validation.
    - Quick "Record payment" buttons directly from debtor rows.
+   - **Monthly Debtor CSV Export**: One-click download of the active month's debtors (`debtors-YYYY-MM.csv`).
 
 2. **Students Directory**:
    - Full student directory with ID, name, phone, group, and monthly tuition in UZS.
@@ -20,6 +21,33 @@ The user interface provides two primary views accessible via the responsive top 
    - Safe DOM rendering using text APIs to prevent unsafe HTML injection.
    - Modal forms for creating and editing students with client-side input validation and double-submission protection.
    - Accessible deletion confirmation dialog with meaningful HTTP 409 financial conflict messaging.
+   - **Student Directory CSV Export**: One-click export of registered students (`students.csv`) respecting active search and group filters.
+
+## CSV Export & Security Architecture
+
+CSV generation occurs entirely in the client using data already returned by REST endpoints, without creating backend load or introducing new database queries:
+
+- **RFC 4180 & Spreadsheet Compatibility**:
+  - Encoded in UTF-8 with Byte Order Mark (BOM: `\uFEFF`) ensuring Microsoft Excel, Apple Numbers, and LibreOffice Calc render Cyrillic and Uzbek characters (`G'aniyev`, `Шодиев`) correctly without encoding prompts.
+  - Fields separated by commas (`,`), with standard CRLF (`\r\n`) line endings across all lines.
+  - RFC 4180 double-quoting for fields containing commas, double quotes, carriage returns, or line feeds. Embedded double quotes are escaped by doubling (`""`).
+
+- **Formula Injection Defense (CSV Injection Protection)**:
+  - Untrusted text fields (student names, phone numbers, group names) are protected against formula execution in spreadsheet software.
+  - Fields whose value (after trimming leading whitespace or control characters) begins with formula trigger prefixes (`=`, `+`, `-`, `@`, `\t`, `\r`, `\n`) are prefixed with an apostrophe (`'`).
+  - Uzbek phone numbers commonly formatted as `+998...` are safely exported as `'+998...`, rendering strictly as text in Excel and LibreOffice Calc without trigger execution.
+
+- **Financial Precision**:
+  - Monetary values (`monthlyFee`, `paidAmount`, `debt`) are exported as exact non-negative integer strings without thousands separators, decimals, or currency symbols.
+  - Values exceeding JavaScript safe-integer bounds or containing fractional amounts are rejected before serialization.
+
+- **Export Columns & Filenames**:
+  - **Monthly Debtors**: `studentId,name,phone,groupName,monthlyFee,paidAmount,debt` saved to `debtors-YYYY-MM.csv` matching the loaded report month.
+  - **Student Directory**: `id,name,phone,groupName,monthlyFee` saved to `students.csv`, preserving active filter results and displayed sort ordering.
+
+- **Empty-List & Stale State Policy**:
+  - When a dataset is empty (0 debtors in the selected month, or 0 students matching active search/filter), clicking Export safely generates an RFC 4180-compliant header-only CSV with BOM and CRLF, displaying a clear notice (`Exported filename.csv (0 records, headers only)`).
+  - Debtor export is disabled while report requests are in flight, upon fetch errors, or when the month input has changed before clicking Refresh (preventing stale export).
 
 ## Student Management Workflow
 
@@ -47,11 +75,11 @@ The API base URL is defined once in `js/config.js` and defaults to `http://local
   ```powershell
   node --test .\frontend\tests\api.test.mjs
   ```
-  Runs 21 automated unit tests covering API requests, student CRUD operations, input validation, HTTP 409/404 handling, search and group filtering, payment dropdown synchronization, double-submission protection, and DOM text safety.
+  Runs 36 automated unit tests covering API requests, student CRUD operations, input validation, HTTP 409/404 handling, search and group filtering, payment dropdown synchronization, double-submission protection, DOM text safety, UTF-8 BOM, CRLF line endings, exact debtor/student header order, formula injection neutralization (`=`, `+`, `-`, `@`, `+998`), RFC 4180 quoting and quote doubling, Unicode preservation, exact integer monetary formatting, header-only empty CSV generation, and dynamic filename generation.
 
 - **Real-Browser Integration Verification**:
   With PostgreSQL, Spring Boot, and the frontend server running:
   ```powershell
   node .\qa\browser-test.mjs
   ```
-  Drives Chromium/Edge through Chrome DevTools Protocol (CDP), testing student creation, listing, dropdown sync, updating name/fee, debtor recalculation, payment recording, 409 conflict handling, student deletion (204), search, group filtering, and 1440px / 768px / 375px responsive layouts without horizontal overflow. Disposable test data is cleaned up automatically.
+  Drives Chromium/Edge through Chrome DevTools Protocol (CDP), testing student creation, listing, dropdown sync, updating name/fee, debtor recalculation, payment recording, 409 conflict handling, student deletion (204), search, group filtering, debtor CSV export with BOM, stale month export protection, filtered student directory CSV export, and 1440px / 768px / 375px responsive layouts without horizontal overflow. Disposable test data is cleaned up automatically.

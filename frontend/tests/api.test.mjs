@@ -18,6 +18,20 @@ import {
   formatUZS,
   validateStudentInput,
 } from '../js/students.js';
+import {
+  CRLF,
+  DEBTOR_CSV_HEADERS,
+  STUDENT_CSV_HEADERS,
+  UTF8_BOM,
+  buildDebtorsCsv,
+  buildStudentsCsv,
+  debtorExportFilename,
+  downloadCsv,
+  formatDebtorRow,
+  formatMonetaryCell,
+  formatStudentRow,
+  sanitizeCsvCell,
+} from '../js/csv.js';
 
 async function withFetch(fake, exercise) {
   const original = globalThis.fetch;
@@ -444,4 +458,188 @@ test('13. rendering potentially unsafe student text displays as plain text witho
     assert(card.textContent.includes('<script>alert("xss")</script>'));
     assert(card.textContent.includes('<img src=x onerror=alert(1)>'));
   });
+});
+
+// --- TASK 8 TESTS (22 - 36) ---
+
+test('22. CSV UTF-8 BOM is present at the start of both debtors and students CSV exports', () => {
+  const debtorsCsv = buildDebtorsCsv([]);
+  const studentsCsv = buildStudentsCsv([]);
+  assert.equal(debtorsCsv.startsWith(UTF8_BOM), true, 'Debtors CSV must start with UTF-8 BOM');
+  assert.equal(studentsCsv.startsWith(UTF8_BOM), true, 'Students CSV must start with UTF-8 BOM');
+  assert.equal(debtorsCsv.charCodeAt(0), 0xFEFF);
+});
+
+test('23. line endings are strictly CRLF (\\r\\n) across all lines including headers and rows', () => {
+  const debtors = [
+    { studentId: 1, name: 'Anvar', phone: '+998901112233', groupName: 'Math', monthlyFee: 500000, paidAmount: 200000, debt: 300000 },
+  ];
+  const csv = buildDebtorsCsv(debtors);
+  // Remove BOM for inspection
+  const withoutBom = csv.slice(1);
+  assert.equal(withoutBom.includes('\r\n'), true);
+  // Ensure every LF is preceded by CR
+  const loneLf = withoutBom.replace(/\r\n/g, '').includes('\n');
+  assert.equal(loneLf, false, 'No lone LF line endings permitted');
+  assert.equal(csv.endsWith('\r\n'), true, 'CSV must terminate with CRLF');
+});
+
+test('24. debtor CSV header row matches exact required column order', () => {
+  assert.deepEqual(DEBTOR_CSV_HEADERS, [
+    'studentId',
+    'name',
+    'phone',
+    'groupName',
+    'monthlyFee',
+    'paidAmount',
+    'debt',
+  ]);
+  const csv = buildDebtorsCsv([]);
+  const firstLine = csv.slice(1).split('\r\n')[0];
+  assert.equal(firstLine, 'studentId,name,phone,groupName,monthlyFee,paidAmount,debt');
+});
+
+test('25. student CSV header row matches exact required column order', () => {
+  assert.deepEqual(STUDENT_CSV_HEADERS, [
+    'id',
+    'name',
+    'phone',
+    'groupName',
+    'monthlyFee',
+  ]);
+  const csv = buildStudentsCsv([]);
+  const firstLine = csv.slice(1).split('\r\n')[0];
+  assert.equal(firstLine, 'id,name,phone,groupName,monthlyFee');
+});
+
+test('26. formula injection defense prefixes dangerous triggers (=, +, -, @) with apostrophe', () => {
+  assert.equal(sanitizeCsvCell('=SUM(A1:A10)'), "'=SUM(A1:A10)");
+  assert.equal(sanitizeCsvCell('-5+5'), "'-5+5");
+  assert.equal(sanitizeCsvCell('@info'), "'@info");
+  assert.equal(sanitizeCsvCell('+12345'), "'+12345");
+});
+
+test('27. formula injection defense detects triggers preceded by leading whitespace or control characters', () => {
+  assert.equal(sanitizeCsvCell('   =CMD()'), "'   =CMD()");
+  assert.equal(sanitizeCsvCell('\t=1+1'), "'\t=1+1");
+  assert.equal(sanitizeCsvCell('\r\n@SUM'), '"\'\r\n@SUM"');
+  assert.equal(sanitizeCsvCell('  +99890'), "'  +99890");
+});
+
+test('28. Uzbek phone numbers starting with +998 are sanitized with apostrophe to prevent spreadsheet formula evaluation', () => {
+  const sanitized = sanitizeCsvCell('+998901234567');
+  assert.equal(sanitized, "'+998901234567");
+
+  const debtor = {
+    studentId: 10,
+    name: 'Bekzod',
+    phone: '+998912345678',
+    groupName: 'Physics',
+    monthlyFee: 400000,
+    paidAmount: 0,
+    debt: 400000,
+  };
+  const row = formatDebtorRow(debtor);
+  assert.equal(row, "10,Bekzod,'+998912345678,Physics,400000,0,400000");
+});
+
+test('29. RFC 4180 double-quoting wraps fields containing commas', () => {
+  assert.equal(sanitizeCsvCell('Smith, John'), '"Smith, John"');
+  assert.equal(sanitizeCsvCell('Group A, Advanced'), '"Group A, Advanced"');
+
+  const student = {
+    id: 5,
+    name: 'Doe, Jane',
+    phone: '998901234567',
+    groupName: 'English, Advanced',
+    monthlyFee: 600000,
+  };
+  const row = formatStudentRow(student);
+  assert.equal(row, '5,"Doe, Jane",998901234567,"English, Advanced",600000');
+});
+
+test('30. RFC 4180 double-quoting escapes embedded double quotes by doubling them', () => {
+  assert.equal(sanitizeCsvCell('He said "Hello"'), '"He said ""Hello"""');
+  assert.equal(sanitizeCsvCell('"Quick" Group'), '"""Quick"" Group"');
+  assert.equal(sanitizeCsvCell('="hello",world'), "\"'=\"\"hello\"\",world\"");
+});
+
+test('31. RFC 4180 double-quoting wraps fields containing embedded newlines', () => {
+  const multiline = 'Line 1\nLine 2';
+  assert.equal(sanitizeCsvCell(multiline), '"Line 1\nLine 2"');
+
+  const crlfMultiline = 'Part 1\r\nPart 2';
+  assert.equal(sanitizeCsvCell(crlfMultiline), '"Part 1\r\nPart 2"');
+});
+
+test('32. Unicode characters (Uzbek Cyrillic and Latin with apostrophes) are accurately preserved', () => {
+  const cyrillicName = 'Шодиев Азиз';
+  const uzbekLatinName = "G'aniyev O'tkir";
+  assert.equal(sanitizeCsvCell(cyrillicName), 'Шодиев Азиз');
+  assert.equal(sanitizeCsvCell(uzbekLatinName), "G'aniyev O'tkir");
+
+  const student = {
+    id: 12,
+    name: "G'aniyev O'tkir",
+    phone: '998901112233',
+    groupName: 'Гуманитар гуруҳ',
+    monthlyFee: 750000,
+  };
+  const row = formatStudentRow(student);
+  assert.equal(row, "12,G'aniyev O'tkir,998901112233,Гуманитар гуруҳ,750000");
+});
+
+test('33. monetary values are exported as exact non-negative integer strings without currency suffixes or thousands separators', () => {
+  assert.equal(formatMonetaryCell(0), '0');
+  assert.equal(formatMonetaryCell(1500000), '1500000');
+  assert.equal(formatMonetaryCell('9007199254740991'), '9007199254740991');
+
+  const debtor = {
+    studentId: 7,
+    name: 'Dilshod',
+    phone: '998909998877',
+    groupName: 'Algebra',
+    monthlyFee: 1200000,
+    paidAmount: 500000,
+    debt: 700000,
+  };
+  const row = formatDebtorRow(debtor);
+  assert.equal(row, '7,Dilshod,998909998877,Algebra,1200000,500000,700000');
+});
+
+test('34. monetary export rejects decimals, negative values, and unsafe integers', () => {
+  assert.throws(() => formatMonetaryCell(500.5), /integer/);
+  assert.throws(() => formatMonetaryCell(-100), /non-negative/);
+  assert.throws(() => formatMonetaryCell('12.50'), /integer/);
+  assert.throws(() => formatMonetaryCell('abc'), /integer/);
+  assert.throws(() => formatMonetaryCell(Number.MAX_SAFE_INTEGER + 10), /safe integer/);
+});
+
+test('35. empty debtors and empty students datasets generate valid RFC 4180 compliant header-only CSVs', () => {
+  const emptyDebtorsCsv = buildDebtorsCsv([]);
+  assert.equal(emptyDebtorsCsv, `${UTF8_BOM}studentId,name,phone,groupName,monthlyFee,paidAmount,debt\r\n`);
+
+  const emptyStudentsCsv = buildStudentsCsv([]);
+  assert.equal(emptyStudentsCsv, `${UTF8_BOM}id,name,phone,groupName,monthlyFee\r\n`);
+});
+
+test('36. debtor export filename reflects selected reporting month and student export respects active filter subset', () => {
+  assert.equal(debtorExportFilename('2026-10'), 'debtors-2026-10.csv');
+  assert.equal(debtorExportFilename('2025-01'), 'debtors-2025-01.csv');
+  assert.equal(debtorExportFilename('invalid'), 'debtors.csv');
+
+  const allStudents = [
+    { id: 1, name: 'Ali Valiyev', phone: '+998901111111', groupName: 'Math-1', monthlyFee: 400000 },
+    { id: 2, name: 'Bobur Karimov', phone: '+998902222222', groupName: 'English-A', monthlyFee: 500000 },
+    { id: 3, name: 'Charos Aliyeva', phone: '+998903333333', groupName: 'Math-1', monthlyFee: 400000 },
+  ];
+
+  // Filter by group 'Math-1'
+  const filtered = filterStudents(allStudents, { query: '', group: 'Math-1' });
+  assert.equal(filtered.length, 2);
+  const csv = buildStudentsCsv(filtered);
+  const lines = csv.slice(1).trim().split('\r\n');
+  assert.equal(lines.length, 3); // header + 2 rows
+  assert.equal(lines[1], "1,Ali Valiyev,'+998901111111,Math-1,400000");
+  assert.equal(lines[2], "3,Charos Aliyeva,'+998903333333,Math-1,400000");
 });

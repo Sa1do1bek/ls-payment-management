@@ -55,7 +55,12 @@
                 <input id="report-month" class="form-control" type="month" required aria-describedby="month-help">
                 <div id="month-help" class="form-text">Choose any month to review its payments.</div>
               </div>
-              <button id="refresh-debtors" type="button" class="btn btn-outline-primary refresh-button">Refresh report</button>
+              <div class="report-actions">
+                <button id="refresh-debtors" type="button" class="btn btn-outline-primary refresh-button">Refresh report</button>
+                <button id="btn-export-debtors" type="button" class="btn btn-outline-secondary export-button" title="Export monthly debtors to CSV" aria-label="Export monthly debtors to CSV" disabled>
+                  <span class="export-icon" aria-hidden="true">📥</span> Export CSV
+                </button>
+              </div>
             </div>
 
             <div class="summary-grid" aria-label="Report summary">
@@ -163,7 +168,12 @@
               <option value="">All groups</option>
             </select>
           </div>
-          <button id="btn-reset-filters" type="button" class="btn btn-outline-secondary reset-filters-button">Reset filters</button>
+          <div class="students-toolbar-actions">
+            <button id="btn-reset-filters" type="button" class="btn btn-outline-secondary reset-filters-button">Reset filters</button>
+            <button id="btn-export-students" type="button" class="btn btn-outline-secondary export-button" title="Export filtered students to CSV" aria-label="Export filtered students to CSV" disabled>
+              <span class="export-icon" aria-hidden="true">📥</span> Export Students CSV
+            </button>
+          </div>
         </div>
 
         <div class="student-count-bar">

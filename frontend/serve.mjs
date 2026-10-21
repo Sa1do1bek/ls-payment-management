@@ -9,6 +9,7 @@ const files = new Map([
   ['/js/api.js', ['js/api.js', 'text/javascript; charset=utf-8']],
   ['/js/money.js', ['js/money.js', 'text/javascript; charset=utf-8']],
   ['/js/students.js', ['js/students.js', 'text/javascript; charset=utf-8']],
+  ['/js/csv.js', ['js/csv.js', 'text/javascript; charset=utf-8']],
   ['/js/app.js', ['js/app.js', 'text/javascript; charset=utf-8']],
 ]);
 

@@ -60,7 +60,7 @@ Open `http://127.0.0.1:5500` in your browser. The frontend calls the backend at 
 
 ## Test and verify
 
-From `backend/`, run `.\mvnw.cmd test` for the automated health, student, payment, debtor, and CORS tests or `.\mvnw.cmd clean verify` to compile, test, and package the backend. These tests use MockMvc and Mockito and need no database. From the repository root, run `node --test .\frontend\tests\api.test.mjs` for frontend API and financial-precision tests. Database migration and JPA validation run against PostgreSQL when the backend starts. Browser verification requires both servers running.
+From `backend/`, run `.\mvnw.cmd test` for the 68 automated health, student, payment, debtor, and CORS tests or `.\mvnw.cmd clean verify` to compile, test, and package the backend. These tests use MockMvc and Mockito and need no database. From the repository root, run `node --test .\frontend\tests\api.test.mjs` for the 36 automated frontend API, student management, and CSV export tests. Database migration and JPA validation run against PostgreSQL when the backend starts. Browser verification requires both servers running.
 
 With PostgreSQL and the backend running, execute the real-database API regression from the repository root:
 
@@ -91,12 +91,13 @@ The expected result is HTTP 200 with `{"status":"UP"}`.
 | Monthly debtor endpoint | `GET /api/debtors?month=YYYY-MM` and compatibility route `/debtors` |
 | Telegram bot or mobile-friendly web interface | Mobile-friendly web interface at `http://127.0.0.1:5500`; no Telegram bot |
 | Student management frontend | Interactive browser directory, creation, full-replacement editing, safe deletion, search, and group filtering |
+| CSV Reporting | Secure client-side debtor export (`debtors-YYYY-MM.csv`) and filtered student export (`students.csv`) |
 | Setup instructions | This README and `frontend/README.md` |
 | Improvements with one more week | Listed at the end of this README |
 
-## Student Management Frontend
+## Student Management & CSV Reporting Frontend
 
-The web frontend at `http://127.0.0.1:5500` integrates student lifecycle management directly alongside the payment and debtor views:
+The web frontend at `http://127.0.0.1:5500` integrates student lifecycle management and CSV export directly alongside the payment and debtor views:
 
 - **Navigation**: Clean top tabs switch seamlessly between **Payments & Debtors** and **Students** without full-page reloads.
 - **Directory and Listing**: Shows Student ID, Name, Phone, Group, Monthly tuition in UZS, and action buttons. Converts to compact mobile cards below 992px. DOM text APIs ensure safe rendering of names and group text containing HTML characters.
@@ -104,13 +105,21 @@ The web frontend at `http://127.0.0.1:5500` integrates student lifecycle managem
 - **Student Editing**: Accessible modal form (`PUT /api/students/{id}`). Prepopulates existing details. On success, updates the table, refreshes payment dropdown options (preserving valid selections), and recalculates monthly debtor totals to reflect the new tuition fee.
 - **Student Deletion**: Protected deletion modal (`DELETE /api/students/{id}`). Deleting a student without payment records returns HTTP 204, removes the student from directory and payment dropdowns, and refreshes the debtor summary. If the student has recorded payment history, the backend returns HTTP 409 conflict: the modal displays the backend message, explains that financial records prevent deletion, and leaves the student intact.
 - **Search and Filtering**: Real-time client-side search across Student Name, Phone, and ID (case-insensitive), combinable with a dynamic group dropdown derived from available students. Clear distinctions are made between an empty directory and zero search matches, with a one-click filter reset.
+- **Monthly Debtor CSV Export**: Generates `debtors-YYYY-MM.csv` containing columns `studentId,name,phone,groupName,monthlyFee,paidAmount,debt`. Exports exactly the debtors returned by `GET /api/debtors?month=YYYY-MM` for the selected reporting month. The export button is automatically disabled while loading, on fetch errors, or when the month input has changed before clicking Refresh (preventing stale export).
+- **Student Directory CSV Export**: Generates `students.csv` containing columns `id,name,phone,groupName,monthlyFee`. Exports the students currently visible under active search and group filters, preserving the displayed sort order.
+- **CSV Security & Encoding**:
+  - UTF-8 with Byte Order Mark (`\uFEFF`) ensures Microsoft Excel and spreadsheet programs automatically recognize Cyrillic and Uzbek characters (`G'aniyev`, `Шодиев`) without encoding corruption.
+  - Strict RFC 4180 compliance with CRLF (`\r\n`) line endings, comma separation, and quote doubling (`""`).
+  - Formula injection defense: fields beginning with dangerous spreadsheet triggers (`=`, `+`, `-`, `@`, `\t`, `\r`, `\n`) are sanitized with a leading apostrophe (`'`). Uzbek phone numbers (e.g. `+998901234567`) are safely rendered as text.
+  - Monetary values are exported as exact non-negative integer strings without currency symbols or thousands separators. Fractional amounts and unsafe integers are rejected.
+  - Consistent empty-dataset policy: when 0 debtors or 0 matching students exist, an RFC 4180-compliant header-only CSV is generated and downloaded, accompanied by accessible user notification.
 
-Run automated frontend unit tests with:
+Run automated frontend unit tests (36 tests) with:
 ```powershell
 node --test .\frontend\tests\api.test.mjs
 ```
 
-Run real-browser end-to-end integration with:
+Run real-browser end-to-end integration (15 steps) with:
 ```powershell
 node .\qa\browser-test.mjs
 ```

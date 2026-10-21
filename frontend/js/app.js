@@ -7,6 +7,12 @@ import {
   getStudents,
   updateStudent,
 } from './api.js';
+import {
+  buildDebtorsCsv,
+  buildStudentsCsv,
+  debtorExportFilename,
+  downloadCsv,
+} from './csv.js';
 import { outstandingTotal, paymentAmount, safeInteger } from './money.js';
 import {
   createStudentCard,
@@ -28,6 +34,7 @@ const elements = {
   // Debtors & Payments
   month: document.querySelector('#report-month'),
   refresh: document.querySelector('#refresh-debtors'),
+  btnExportDebtors: document.querySelector('#btn-export-debtors'),
   debtorCount: document.querySelector('#debtor-count'),
   totalDebt: document.querySelector('#total-debt'),
   loading: document.querySelector('#debtors-loading'),
@@ -55,6 +62,7 @@ const elements = {
   studentSearch: document.querySelector('#student-search'),
   studentGroupFilter: document.querySelector('#student-group-filter'),
   btnResetFilters: document.querySelector('#btn-reset-filters'),
+  btnExportStudents: document.querySelector('#btn-export-students'),
   btnNoMatchesReset: document.querySelector('#btn-no-matches-reset'),
   filteredStudentCount: document.querySelector('#filtered-student-count'),
   totalStudentCount: document.querySelector('#total-student-count'),
@@ -92,6 +100,7 @@ const elements = {
 const state = {
   students: [],
   debtors: [],
+  loadedDebtorMonth: '',
   reportRequest: 0,
   studentsRequest: 0,
   paymentPending: false,
@@ -132,6 +141,10 @@ function reportState(mode, message = '') {
   elements.content.hidden = mode !== 'content';
   elements.reportError.textContent = mode === 'error' ? message : '';
   elements.refresh.disabled = mode === 'loading';
+  elements.btnExportDebtors.disabled = mode === 'loading'
+    || mode === 'error'
+    || !state.loadedDebtorMonth
+    || elements.month.value !== state.loadedDebtorMonth;
 }
 
 function validatedStudent(student) {
@@ -251,6 +264,7 @@ function renderStudents() {
 
   elements.studentsLoading.hidden = true;
   elements.studentsError.hidden = true;
+  elements.btnExportStudents.disabled = false;
 
   if (state.students.length === 0) {
     elements.studentsEmpty.hidden = false;
@@ -291,6 +305,7 @@ async function loadStudents() {
   elements.studentsEmpty.hidden = true;
   elements.studentsNoMatches.hidden = true;
   elements.studentsContent.hidden = true;
+  elements.btnExportStudents.disabled = true;
 
   elements.studentsStatus.classList.remove('error');
   elements.studentsStatus.textContent = 'Loading students…';
@@ -316,6 +331,7 @@ async function loadStudents() {
     elements.studentsNoMatches.hidden = true;
     elements.studentsError.hidden = false;
     elements.studentsError.textContent = `Could not load student directory. ${error.message}`;
+    elements.btnExportStudents.disabled = true;
 
     elements.studentsStatus.classList.add('error');
     elements.studentsStatus.textContent = `Student list unavailable. ${error.message}`;
@@ -567,12 +583,14 @@ function renderDebtors(debtors) {
   elements.tableBody.replaceChildren(...debtors.map(tableRow));
   elements.cards.replaceChildren(...debtors.map(mobileCard));
   reportState(debtors.length === 0 ? 'empty' : 'content');
+  elements.btnExportDebtors.disabled = false;
 }
 
 async function loadDebtors() {
   const requestId = ++state.reportRequest;
   const month = elements.month.value;
   state.debtors = [];
+  state.loadedDebtorMonth = '';
   elements.tableBody.replaceChildren();
   elements.cards.replaceChildren();
   elements.debtorCount.textContent = '—';
@@ -585,6 +603,7 @@ async function loadDebtors() {
   try {
     const debtors = (await getDebtors(month)).map(validatedDebtor);
     if (requestId !== state.reportRequest) return true;
+    state.loadedDebtorMonth = month;
     renderDebtors(debtors);
     return true;
   } catch (error) {
@@ -652,6 +671,37 @@ async function submitPayment(event) {
   }
 }
 
+// Export Handlers
+function handleExportDebtors() {
+  if (elements.btnExportDebtors.disabled || !validMonth(state.loadedDebtorMonth)) return;
+  const month = state.loadedDebtorMonth;
+  const filename = debtorExportFilename(month);
+  const csvContent = buildDebtorsCsv(state.debtors);
+  downloadCsv(csvContent, filename);
+  if (state.debtors.length === 0) {
+    showNotice('success', `Exported ${filename} (0 records, headers only).`);
+  } else {
+    showNotice('success', `Exported ${filename} (${state.debtors.length} debtor record${state.debtors.length === 1 ? '' : 's'}).`);
+  }
+}
+
+function handleExportStudents() {
+  if (elements.btnExportStudents.disabled) return;
+  const filtered = filterStudents(state.students, {
+    query: state.searchQuery,
+    group: state.selectedGroup,
+  });
+  const filename = 'students.csv';
+  const csvContent = buildStudentsCsv(filtered);
+  downloadCsv(csvContent, filename);
+  const filterActive = Boolean(state.searchQuery || state.selectedGroup);
+  if (filtered.length === 0) {
+    showNotice('success', `Exported ${filename} (0 records, headers only).`);
+  } else {
+    showNotice('success', `Exported ${filename} (${filtered.length} student record${filtered.length === 1 ? '' : 's'}${filterActive ? ', respecting active filters' : ''}).`);
+  }
+}
+
 // Event Listeners Initialization
 const today = localDateParts();
 elements.month.value = today.month;
@@ -663,7 +713,13 @@ elements.navStudents.addEventListener('click', () => switchTab('students'));
 
 // Payments and Debtors
 elements.month.addEventListener('change', loadDebtors);
+elements.month.addEventListener('input', () => {
+  if (elements.month.value !== state.loadedDebtorMonth) {
+    elements.btnExportDebtors.disabled = true;
+  }
+});
 elements.refresh.addEventListener('click', loadDebtors);
+elements.btnExportDebtors.addEventListener('click', handleExportDebtors);
 elements.form.addEventListener('submit', submitPayment);
 
 // Search & Filter
@@ -677,6 +733,7 @@ elements.studentGroupFilter.addEventListener('change', (e) => {
 });
 elements.btnResetFilters.addEventListener('click', resetFilters);
 elements.btnNoMatchesReset.addEventListener('click', resetFilters);
+elements.btnExportStudents.addEventListener('click', handleExportStudents);
 
 // Modals open
 elements.btnOpenCreateStudent.addEventListener('click', openCreateModal);

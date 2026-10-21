@@ -142,7 +142,30 @@ body {
 .search-control { flex: 1 1 240px; min-width: 200px; }
 .group-control { flex: 0 1 200px; min-width: 170px; }
 .month-control { min-width: 200px; }
-.reset-filters-button { min-height: 43px; }
+.report-actions, .students-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  flex-wrap: wrap;
+}
+.reset-filters-button, .export-button { min-height: 43px; }
+.export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-weight: 650;
+  border-color: #cbd8e3;
+  color: #314b62;
+  background-color: #fff;
+}
+.export-button:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+  color: var(--ink);
+}
+.export-icon {
+  font-size: .95rem;
+}
 
 .student-count-bar {
   margin-bottom: 1.1rem;
@@ -309,7 +332,8 @@ body {
   .report-toolbar, .students-toolbar { display: block; margin: 1.25rem 0; padding: .95rem; }
   .month-control, .search-control, .group-control { min-width: 0; width: 100%; }
   .group-control { margin-top: .75rem; }
-  .refresh-button, .reset-filters-button, .create-student-btn { width: 100%; margin-top: .9rem; }
+  .report-actions, .students-toolbar-actions { display: flex; flex-direction: column; gap: .5rem; margin-top: .9rem; width: 100%; }
+  .refresh-button, .reset-filters-button, .create-student-btn, .export-button { width: 100%; margin-top: 0; }
   .summary-grid { gap: .55rem; }
   .summary-tile { padding: .8rem; }
   .summary-value { font-size: 1.23rem; }
