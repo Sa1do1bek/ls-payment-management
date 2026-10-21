@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
@@ -33,14 +34,15 @@ public class Student {
     @Column(name = "group_name", nullable = false, length = 100)
     private String groupName;
 
+    @NotNull
     @Positive
     @Column(name = "monthly_fee", nullable = false)
-    private long monthlyFee;
+    private Long monthlyFee;
 
     protected Student() {
     }
 
-    public Student(String name, String phone, String groupName, long monthlyFee) {
+    public Student(String name, String phone, String groupName, Long monthlyFee) {
         this.name = name;
         this.phone = phone;
         this.groupName = groupName;
@@ -63,7 +65,14 @@ public class Student {
         return groupName;
     }
 
-    public long getMonthlyFee() {
+    public Long getMonthlyFee() {
         return monthlyFee;
+    }
+
+    public void updateDetails(String name, String phone, String groupName, Long monthlyFee) {
+        this.name = name;
+        this.phone = phone;
+        this.groupName = groupName;
+        this.monthlyFee = monthlyFee;
     }
 }
