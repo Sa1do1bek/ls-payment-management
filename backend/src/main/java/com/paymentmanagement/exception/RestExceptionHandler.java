@@ -22,6 +22,12 @@ public class RestExceptionHandler {
         return error(HttpStatus.NOT_FOUND, exception.getMessage(), request);
     }
 
+    @ExceptionHandler(InvalidMonthException.class)
+    public ResponseEntity<ApiError> invalidMonth(InvalidMonthException exception) {
+        return ResponseEntity.badRequest().body(new ApiError(400, "Bad Request", exception.getMessage(),
+                "/api/debtors"));
+    }
+
     @ExceptionHandler(StudentDeletionConflictException.class)
     public ResponseEntity<ApiError> deletionConflict(StudentDeletionConflictException exception,
                                                       HttpServletRequest request) {

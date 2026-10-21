@@ -1,6 +1,6 @@
 # Educational Center Payment Management
 
-This repository contains the backend foundation, student management API, and payment recording/history API for an educational center payment management system. Monthly debt calculations and the frontend belong to later tasks.
+This repository contains the backend foundation, student management API, payment recording/history API, and monthly debt calculation API for an educational center payment management system. The frontend belongs to a later task.
 
 ## Project structure
 
@@ -41,7 +41,7 @@ Flyway applies `backend/src/main/resources/db/migration/V1__create_students_and_
 
 ## Test and verify
 
-From `backend/`, run `.\mvnw.cmd test` for the automated health, student, and payment tests or `.\mvnw.cmd clean verify` to compile, test, and package the backend. These tests use MockMvc and Mockito and need no database. Database migration and JPA validation run against PostgreSQL when the backend starts.
+From `backend/`, run `.\mvnw.cmd test` for the automated health, student, payment, and debtor tests or `.\mvnw.cmd clean verify` to compile, test, and package the backend. These tests use MockMvc and Mockito and need no database. Database migration and JPA validation run against PostgreSQL when the backend starts.
 
 With the backend running, open another PowerShell window and run:
 
@@ -146,3 +146,38 @@ Invoke-RestMethod -Method Get -Uri "$base/api/students/$($student.id)/payments"
 ```
 
 Payment deletion is not part of this API. Remove only your disposable test records directly in PostgreSQL when cleanup is needed, then delete the test student through the student API.
+
+## Monthly debt API
+
+Both `GET /api/debtors?month=YYYY-MM` and the compatibility route `GET /debtors?month=YYYY-MM` return the same JSON. The `month` parameter is required and must contain a four-digit year from `0001` through `9999` and a two-digit month from `01` through `12`. Invalid or missing values return HTTP 400 using the existing `status`, `error`, `message`, and `path` error fields. Both routes use `/api/debtors` as the canonical error path so their JSON remains identical.
+
+For each currently registered student, `paidAmount` sums all payments dated in the requested calendar month. `debt = max(0, monthlyFee - paidAmount)`. Only students with positive debt appear, ordered by ascending `studentId`; HTTP 200 returns `[]` when nobody owes tuition. Each result contains numeric `studentId`, `monthlyFee`, `paidAmount`, and `debt`, plus `name`, `phone`, and `groupName`. Payments on the same date are all counted. The calculation uses the first day of the requested month as an inclusive start and the first day of the following month as an exclusive end.
+
+For example, a student with an 800000 UZS fee and no October payments has `paidAmount: 0` and `debt: 800000`. Two October payments of 200000 and 300000 produce `paidAmount: 500000` and `debt: 300000`. A student who paid 800000 or more does not appear.
+
+Example response for October 2026:
+
+```json
+[
+  {"studentId":1,"name":"Ali Valiyev","phone":"+998901234567","groupName":"English B2","monthlyFee":800000,"paidAmount":500000,"debt":300000},
+  {"studentId":2,"name":"Malika Karimova","phone":"+998911234567","groupName":"Mathematics A1","monthlyFee":600000,"paidAmount":0,"debt":600000}
+]
+```
+
+The calculation considers every currently registered student for any requested month and uses their *current* monthly fee, including when looking at past months. A payment applies only to the month in its `paymentDate`; excess payments do not carry forward. The system does not track enrollment dates, fee history, invoices, or partial-month tuition. Editing a student's fee can therefore change a previously requested month's calculated balance.
+
+With the backend running, these Windows PowerShell commands check both routes and validation. The payment example above can be used first to create a disposable student with October payments.
+
+```powershell
+$base = 'http://localhost:8080'
+$primary = Invoke-WebRequest "$base/api/debtors?month=2026-10"
+$compatible = Invoke-WebRequest "$base/debtors?month=2026-10"
+$primary.StatusCode
+$primary.Content
+$primary.Content -eq $compatible.Content
+$invalid = Invoke-WebRequest -SkipHttpErrorCheck "$base/api/debtors?month=2026-13"
+$invalid.StatusCode
+$invalid.Content
+```
+
+The successful requests return HTTP 200 and identical arrays. The invalid request returns HTTP 400 with `"message":"month must use YYYY-MM format"`.
