@@ -1,4 +1,5 @@
 import { ApiRequestError, createPayment, getDebtors, getStudents } from './api.js';
+import { outstandingTotal, paymentAmount, safeInteger } from './money.js';
 
 const elements = {
   notice: document.querySelector('#notice'),
@@ -33,13 +34,6 @@ function localDateParts(date = new Date()) {
 
 function validMonth(value) {
   return /^(?!0000)\d{4}-(0[1-9]|1[0-2])$/.test(value);
-}
-
-function safeInteger(value, field, positive = false) {
-  if (!Number.isSafeInteger(value) || value < (positive ? 1 : 0)) {
-    throw new Error(`${field} is outside the range this browser can display exactly.`);
-  }
-  return value;
 }
 
 function formatMoney(value) {
@@ -188,7 +182,7 @@ function mobileCard(debtor) {
 
 function renderDebtors(debtors) {
   state.debtors = debtors;
-  const total = debtors.reduce((sum, debtor) => sum + BigInt(debtor.debt), 0n);
+  const total = outstandingTotal(debtors);
   elements.debtorCount.textContent = String(debtors.length);
   elements.totalDebt.textContent = `${total.toLocaleString('en-US')} UZS`;
   elements.tableBody.replaceChildren(...debtors.map(tableRow));
@@ -229,15 +223,18 @@ function paymentDetails() {
     throw new Error('Select a student before recording a payment.');
   }
   const rawAmount = elements.amount.value.trim();
-  if (!/^[0-9]+$/.test(rawAmount) || BigInt(rawAmount) < 1n || BigInt(rawAmount) > BigInt(Number.MAX_SAFE_INTEGER)) {
+  let amount;
+  try {
+    amount = paymentAmount(rawAmount);
+  } catch (error) {
     elements.amount.focus();
-    throw new Error('Enter a positive whole UZS amount within the displayed limit.');
+    throw error;
   }
   if (!elements.date.value || !elements.date.validity.valid) {
     elements.date.focus();
     throw new Error('Select a valid payment date.');
   }
-  return { studentId, amount: Number(rawAmount), paymentDate: elements.date.value };
+  return { studentId, amount, paymentDate: elements.date.value };
 }
 
 async function submitPayment(event) {

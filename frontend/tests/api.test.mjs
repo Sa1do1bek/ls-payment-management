@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ApiRequestError, createPayment, getDebtors, getStudents } from '../js/api.js';
+import { outstandingTotal, paymentAmount, safeInteger } from '../js/money.js';
 
 async function withFetch(fake, exercise) {
   const original = globalThis.fetch;
@@ -57,4 +58,22 @@ test('unexpected JSON shape is rejected rather than rendered as empty data', asy
   await withFetch(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }), async () => {
     await assert.rejects(getDebtors('2026-10'), /unexpected format/);
   });
+});
+
+test('payment input is checked as text before conversion to Number', () => {
+  assert.equal(paymentAmount('9007199254740991'), Number.MAX_SAFE_INTEGER);
+  for (const raw of ['0', '-1', '12.5', '9007199254740992', '9007199254740993']) {
+    assert.throws(() => paymentAmount(raw), /positive whole UZS/);
+  }
+});
+
+test('unsafe API monetary values are rejected even after JSON parsing rounded them', () => {
+  const rounded = JSON.parse('{"debt":9007199254740993}').debt;
+  assert.equal(rounded, 9007199254740992);
+  assert.throws(() => safeInteger(rounded, 'Debt'), /outside the range/);
+  assert.throws(() => outstandingTotal([{ debt: rounded }]), /outside the range/);
+});
+
+test('supported debtor amounts sum exactly beyond Number safe range', () => {
+  assert.equal(outstandingTotal([{ debt: Number.MAX_SAFE_INTEGER }, { debt: 20 }]), 9007199254741011n);
 });

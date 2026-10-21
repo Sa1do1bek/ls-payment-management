@@ -5,9 +5,10 @@ This repository contains the Spring Boot API and an independent frontend for man
 ## Project structure
 
 ```text
-payment-management/
+extra/
 ├── backend/              Spring Boot application, Maven Wrapper, Flyway, tests
 ├── frontend/             HTML5, Bootstrap 5, Vanilla JavaScript, local static server
+├── qa/                   Disposable real-PostgreSQL API regression script
 ├── docker-compose.yml    Local PostgreSQL
 ├── .env.example           Safe local configuration example
 ├── .gitignore
@@ -18,28 +19,38 @@ The backend uses Java 21, Spring Boot 3.5.16, Spring Web, Spring Data JPA / Hibe
 
 ## Prerequisites
 
-Install Java 21, Node.js, and Docker with the Compose plugin. The Maven Wrapper downloads Maven 3.9.11 automatically on its first run. Node.js serves the independent frontend without any package installation.
+Install Java 21, Node.js 20 or newer (tested with 24.19.0), PowerShell 7 for the optional API regression script, and Docker Desktop or Docker Engine with the Compose plugin. The Maven Wrapper downloads Maven 3.9.11 automatically on its first run. Node.js serves the independent frontend without any package installation or other global tools.
 
 ## Set up and run on Windows PowerShell
 
-Run these commands from the repository root:
+In the first PowerShell window, run these commands from the repository root. Port 5433 is used because port 5432 may already be occupied on a developer machine:
 
 ```powershell
 Copy-Item .env.example .env
+$example = Get-Content .env
+$example -replace '^DB_PORT=5432$', 'DB_PORT=5433' | Set-Content .env
 $env:DB_PASSWORD = 'change-me-for-local-development'
+$env:DB_PORT = '5433'
 docker compose up -d --wait
+```
+
+In a second PowerShell window, start at the repository root, then run the backend from `backend/`:
+
+```powershell
 cd backend
+$env:DB_PASSWORD = 'change-me-for-local-development'
+$env:DB_PORT = '5433'
 .\mvnw.cmd clean verify
 .\mvnw.cmd spring-boot:run
 ```
 
 The example password is for a disposable local database. Use a different secret in shared environments. Docker Compose reads the root `.env` file; Spring Boot reads `DB_PASSWORD` from the shell. If you edit database values in `.env`, set matching shell variables before running the backend. `DB_HOST`, `DB_PORT`, `DB_NAME`, and `DB_USERNAME` can override the backend defaults. The default database address is `localhost:5432/payment_management`.
 
-If port 5432 is already in use, change `DB_PORT` to `5433` in the root `.env` file and run `$env:DB_PORT = '5433'` before starting Compose and Spring Boot. Run `docker compose down` from the repository root to stop PostgreSQL without deleting its named volume.
+If port 5433 is also occupied, choose another free port in `.env` and use that same `DB_PORT` value in the backend shell. An existing PostgreSQL named volume retains its original database password; changing `.env` alone will not update that database user. Run `docker compose down` from the repository root to stop PostgreSQL without deleting its named volume.
 
 Flyway applies `backend/src/main/resources/db/migration/V1__create_students_and_payments.sql` when the backend starts. Hibernate validates the mapped schema; it does not create or update tables.
 
-In a second PowerShell window at the repository root, serve the frontend and open the shown URL:
+In a third PowerShell window at the repository root, serve the frontend and open the shown URL:
 
 ```powershell
 node .\frontend\serve.mjs
@@ -49,7 +60,17 @@ Open `http://127.0.0.1:5500` in your browser. The frontend calls the backend at 
 
 ## Test and verify
 
-From `backend/`, run `.\mvnw.cmd test` for the automated health, student, payment, debtor, and CORS tests or `.\mvnw.cmd clean verify` to compile, test, and package the backend. These tests use MockMvc and Mockito and need no database. From the repository root, run `node --test .\frontend\tests\api.test.mjs` for frontend API handling tests. Database migration and JPA validation run against PostgreSQL when the backend starts. Browser verification requires both servers running.
+From `backend/`, run `.\mvnw.cmd test` for the automated health, student, payment, debtor, and CORS tests or `.\mvnw.cmd clean verify` to compile, test, and package the backend. These tests use MockMvc and Mockito and need no database. From the repository root, run `node --test .\frontend\tests\api.test.mjs` for frontend API and financial-precision tests. Database migration and JPA validation run against PostgreSQL when the backend starts. Browser verification requires both servers running.
+
+With PostgreSQL and the backend running, execute the real-database API regression from the repository root:
+
+```powershell
+$env:DB_PASSWORD = 'change-me-for-local-development'
+$env:DB_PORT = '5433'
+.\qa\verify-api.ps1
+```
+
+The script tests CRUD, payments, debt boundaries, validation, and both debtor routes. It creates uniquely named disposable students and removes only their exact IDs in a `finally` block. It needs Docker Compose to remove its own payment records because the API intentionally has no payment-delete endpoint. Check the cleanup output if a run is interrupted.
 
 With the backend running, open another PowerShell window and run:
 
@@ -60,6 +81,17 @@ $response.Content
 ```
 
 The expected result is HTTP 200 with `{"status":"UP"}`.
+
+## Original assignment coverage
+
+| Requirement | Implementation |
+| --- | --- |
+| Student CRUD | `/api/students` endpoints below |
+| Payment creation and history | `POST /api/payments` and `GET /api/students/{studentId}/payments` |
+| Monthly debtor endpoint | `GET /api/debtors?month=YYYY-MM` and compatibility route `/debtors` |
+| Telegram bot or mobile-friendly web interface | Mobile-friendly web interface at `http://127.0.0.1:5500`; no Telegram bot |
+| Setup instructions | This README and `frontend/README.md` |
+| Improvements with one more week | Listed at the end of this README |
 
 ## Student API
 
@@ -189,3 +221,20 @@ $invalid.Content
 ```
 
 The successful requests return HTTP 200 and identical arrays. The invalid request returns HTTP 400 with `"message":"month must use YYYY-MM format"`.
+
+## Troubleshooting and scope
+
+- If Compose reports that port 5432 is occupied, use the 5433 example above. If 5433 is occupied too, choose another free host port and set the same `DB_PORT` in the backend shell.
+- If the backend cannot authenticate to PostgreSQL, confirm that `DB_PASSWORD`, `DB_NAME`, and `DB_USERNAME` match the values used when the named database volume was first created. Changing `.env` does not reset an existing database password.
+- If the frontend reports a connection error, check `GET http://localhost:8080/api/health`, then check `frontend/js/config.js`. Serve the frontend over HTTP on port 5500; opening `index.html` with `file://` will not work.
+- If the browser reports CORS errors, use `http://127.0.0.1:5500` or `http://localhost:5500`. The backend allows those two development origins. CORS does not authenticate callers.
+- The frontend displays an error when an API monetary number exceeds JavaScript's safe-integer range. It accepts positive whole UZS payments up to 9,007,199,254,740,991; the backend can accept larger `Long` values through direct API clients. Do not treat an unsafe browser number as an exact amount.
+- This assignment has no login, roles, or payment-correction API. Run it on a trusted local machine; the development server and database settings are not production deployment guidance.
+
+## What I Would Improve With One More Week
+
+1. Add authentication and role-based access for staff who view or record financial data.
+2. Track tuition fee history and enrollment periods so old monthly balances remain stable after a fee change.
+3. Add automated PostgreSQL integration tests in an isolated database to cover migrations, constraints, and concurrent requests.
+4. Add audited payment corrections with explicit reversal records instead of deleting financial history.
+5. Add searchable financial reports and filters for staff review.
