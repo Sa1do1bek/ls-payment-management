@@ -1,0 +1,197 @@
+:root {
+  --ink: #17324d;
+  --muted: #60758a;
+  --line: #dce5ed;
+  --canvas: #f4f7fa;
+  --accent: #176d88;
+  --accent-dark: #10556b;
+  --soft-blue: #ebf4f7;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  min-width: 0;
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+.site-header {
+  color: #fff;
+  background: linear-gradient(125deg, #102a43 0%, #123c56 66%, #17627a 100%);
+  border-bottom: 4px solid #d2a86b;
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+  min-height: 174px;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.brand-mark {
+  flex: 0 0 58px;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border: 1px solid rgba(255, 255, 255, .42);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .1);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.header-copy { min-width: 0; }
+.eyebrow, .section-kicker {
+  font-size: .73rem;
+  font-weight: 800;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.eyebrow { color: #d9c6a9; }
+.header-copy h1 {
+  margin: 0 0 .25rem;
+  font-size: clamp(1.7rem, 3.8vw, 2.45rem);
+  font-weight: 750;
+  letter-spacing: -.035em;
+}
+.header-description { color: #d1e0e9; font-size: .94rem; }
+.header-badge {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  margin-left: auto;
+  padding: .55rem .8rem;
+  border: 1px solid rgba(255, 255, 255, .24);
+  border-radius: 999px;
+  color: #e8f1f4;
+  font-size: .78rem;
+  white-space: nowrap;
+}
+.badge-dot { width: 7px; height: 7px; border-radius: 50%; background: #90d4c5; }
+
+.main-content { padding-top: 2rem; padding-bottom: 3rem; }
+.panel {
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 32px rgba(18, 47, 71, .055);
+}
+.debtors-panel { padding: 1.65rem; }
+.payment-panel { padding: 1.65rem; }
+.section-kicker { margin-bottom: .35rem; color: var(--accent); }
+.panel h2 { margin: 0; font-size: 1.45rem; font-weight: 750; letter-spacing: -.025em; }
+.section-description { margin: .4rem 0 0; color: var(--muted); font-size: .93rem; }
+
+.report-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1.65rem 0;
+  padding: 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #f9fbfc;
+}
+.month-control { min-width: 200px; }
+.form-label { margin-bottom: .4rem; color: #314b62; font-size: .85rem; font-weight: 700; }
+.form-text { color: #718397; font-size: .76rem; }
+.form-control, .form-select {
+  min-height: 43px;
+  border-color: #cbd8e3;
+  color: var(--ink);
+  font-size: .92rem;
+}
+.form-control:focus, .form-select:focus, .btn:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 .23rem rgba(23, 109, 136, .2);
+}
+.btn { min-height: 42px; font-weight: 700; font-size: .88rem; }
+.btn-primary { --bs-btn-bg: var(--accent); --bs-btn-border-color: var(--accent); --bs-btn-hover-bg: var(--accent-dark); --bs-btn-hover-border-color: var(--accent-dark); }
+.btn-outline-primary { --bs-btn-color: var(--accent); --bs-btn-border-color: #94b8c5; --bs-btn-hover-bg: var(--accent); --bs-btn-hover-border-color: var(--accent); }
+
+.summary-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: .85rem; margin-bottom: 1.4rem; }
+.summary-tile {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  min-width: 0;
+  padding: 1.05rem 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fff;
+}
+.total-tile { border-color: #c7dfe4; background: var(--soft-blue); }
+.summary-label { color: var(--muted); font-size: .78rem; font-weight: 650; }
+.summary-value { overflow-wrap: anywhere; font-size: clamp(1.4rem, 2.4vw, 1.85rem); font-weight: 800; line-height: 1.15; letter-spacing: -.035em; }
+.total-tile .summary-value { color: #0d6077; }
+
+.state-message { display: flex; align-items: center; gap: .75rem; padding: 1.35rem 1rem; border-radius: 11px; color: var(--muted); font-size: .9rem; }
+.error-message { background: #fff2f2; color: #9d3434; }
+.empty-message { align-items: flex-start; background: #f2f8f7; color: #285d5d; }
+.empty-message strong, .empty-message span { display: block; }
+.empty-message span:not(.empty-symbol) { margin-top: .16rem; font-size: .83rem; }
+.empty-symbol { display: grid; place-items: center; flex: 0 0 26px; width: 26px; height: 26px; border-radius: 50%; background: #cce8e0; font-weight: 800; }
+
+.debtor-table { font-size: .83rem; }
+.debtor-table th { padding: .8rem .45rem; border-bottom: 1px solid var(--line); color: #64788b; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.debtor-table td { padding: .9rem .45rem; border-bottom-color: #edf1f5; vertical-align: middle; }
+.debtor-table tbody tr:last-child td { border-bottom: 0; }
+.student-name { display: block; color: var(--ink); font-weight: 750; }
+.student-id, .secondary-text { display: block; color: var(--muted); font-size: .75rem; }
+.money-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.debt-amount { color: #a04f2a; font-weight: 800; }
+.quick-pay { white-space: nowrap; font-size: .74rem; }
+.mobile-debtors { display: none; }
+
+.small-status { margin: 1.25rem 0 .95rem; color: var(--muted); font-size: .82rem; }
+.small-status.error { color: #a73b3b; }
+.label-unit { margin-left: .2rem; color: var(--muted); font-weight: 500; }
+.submit-button { width: 100%; }
+.payment-note { margin-top: 1.15rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
+
+.notice { margin-bottom: 1.2rem; padding: .9rem 1.05rem; border: 1px solid; border-radius: 11px; font-size: .9rem; font-weight: 600; }
+.notice-success { border-color: #b9dfcd; background: #e9f7ef; color: #246849; }
+.notice-error { border-color: #ecc6c6; background: #fff0f0; color: #953b3b; }
+.notice-warning { border-color: #f0d8a7; background: #fff8e7; color: #795820; }
+
+@media (max-width: 991.98px) {
+  .desktop-debtors { display: none; }
+  .mobile-debtors { display: grid; gap: .85rem; }
+  .debtor-card { padding: 1rem; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+  .card-top { display: flex; justify-content: space-between; gap: .7rem; }
+  .card-debt { color: #a04f2a; font-size: 1.05rem; font-weight: 800; text-align: right; white-space: nowrap; }
+  .card-debt-label { display: block; color: var(--muted); font-size: .68rem; font-weight: 700; text-transform: uppercase; }
+  .card-details { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; margin: .9rem 0; padding: .8rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .detail-label { display: block; color: var(--muted); font-size: .7rem; }
+  .detail-value { display: block; overflow-wrap: anywhere; font-size: .84rem; font-weight: 650; }
+}
+
+@media (max-width: 575.98px) {
+  .header-inner { align-items: flex-start; min-height: 0; padding-top: 1.6rem; padding-bottom: 1.65rem; }
+  .brand-mark { flex-basis: 44px; width: 44px; height: 44px; border-radius: 12px; font-size: .82rem; }
+  .header-copy h1 { font-size: 1.6rem; }
+  .header-description { font-size: .82rem; }
+  .main-content { padding-top: 1.15rem; }
+  .debtors-panel, .payment-panel { padding: 1.1rem; border-radius: 15px; }
+  .report-toolbar { display: block; margin: 1.25rem 0; padding: .95rem; }
+  .month-control { min-width: 0; }
+  .refresh-button { width: 100%; margin-top: .9rem; }
+  .summary-grid { gap: .55rem; }
+  .summary-tile { padding: .8rem; }
+  .summary-value { font-size: 1.23rem; }
+  .card-top { flex-wrap: wrap; }
+  .card-debt { text-align: left; }
+}

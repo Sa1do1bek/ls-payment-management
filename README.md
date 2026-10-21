@@ -1,24 +1,24 @@
 # Educational Center Payment Management
 
-This repository contains the backend foundation, student management API, payment recording/history API, and monthly debt calculation API for an educational center payment management system. The frontend belongs to a later task.
+This repository contains the Spring Boot API and an independent frontend for managing payments and viewing monthly tuition debts.
 
 ## Project structure
 
 ```text
 payment-management/
 ├── backend/              Spring Boot application, Maven Wrapper, Flyway, tests
-├── frontend/             Placeholder documentation for Task 5
+├── frontend/             HTML5, Bootstrap 5, Vanilla JavaScript, local static server
 ├── docker-compose.yml    Local PostgreSQL
 ├── .env.example           Safe local configuration example
 ├── .gitignore
 └── README.md
 ```
 
-The backend uses Java 21, Spring Boot 3.5.16, Spring Web, Spring Data JPA / Hibernate, Jakarta Bean Validation, Flyway, and JUnit 5. PostgreSQL runs from the 17 Alpine image. The frontend will use HTML5, Bootstrap 5, and Vanilla JavaScript when Task 5 begins.
+The backend uses Java 21, Spring Boot 3.5.16, Spring Web, Spring Data JPA / Hibernate, Jakarta Bean Validation, Flyway, and JUnit 5. PostgreSQL runs from the 17 Alpine image. The frontend uses HTML5, CSS3, Bootstrap 5.3.3, and Vanilla JavaScript modules, with no bundler.
 
 ## Prerequisites
 
-Install Java 21 and Docker with the Compose plugin. The Maven Wrapper downloads Maven 3.9.11 automatically on its first run.
+Install Java 21, Node.js, and Docker with the Compose plugin. The Maven Wrapper downloads Maven 3.9.11 automatically on its first run. Node.js serves the independent frontend without any package installation.
 
 ## Set up and run on Windows PowerShell
 
@@ -39,9 +39,17 @@ If port 5432 is already in use, change `DB_PORT` to `5433` in the root `.env` fi
 
 Flyway applies `backend/src/main/resources/db/migration/V1__create_students_and_payments.sql` when the backend starts. Hibernate validates the mapped schema; it does not create or update tables.
 
+In a second PowerShell window at the repository root, serve the frontend and open the shown URL:
+
+```powershell
+node .\frontend\serve.mjs
+```
+
+Open `http://127.0.0.1:5500` in your browser. The frontend calls the backend at `http://localhost:8080`, configured in `frontend/js/config.js`. The backend allows the documented local frontend origins (`localhost:5500` and `127.0.0.1:5500`) to make GET and POST requests. The pinned Bootstrap CDN stylesheet requires internet access. Do not use `file://` to open the page.
+
 ## Test and verify
 
-From `backend/`, run `.\mvnw.cmd test` for the automated health, student, payment, and debtor tests or `.\mvnw.cmd clean verify` to compile, test, and package the backend. These tests use MockMvc and Mockito and need no database. Database migration and JPA validation run against PostgreSQL when the backend starts.
+From `backend/`, run `.\mvnw.cmd test` for the automated health, student, payment, debtor, and CORS tests or `.\mvnw.cmd clean verify` to compile, test, and package the backend. These tests use MockMvc and Mockito and need no database. From the repository root, run `node --test .\frontend\tests\api.test.mjs` for frontend API handling tests. Database migration and JPA validation run against PostgreSQL when the backend starts. Browser verification requires both servers running.
 
 With the backend running, open another PowerShell window and run:
 
