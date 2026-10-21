@@ -12,6 +12,13 @@ export function paymentAmount(raw) {
   return Number(raw);
 }
 
+export function tuitionFee(raw) {
+  if (!/^[0-9]+$/.test(raw) || BigInt(raw) < 1n || BigInt(raw) > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error('Enter a positive whole UZS monthly fee within the displayed limit.');
+  }
+  return Number(raw);
+}
+
 export function outstandingTotal(debtors) {
   return debtors.reduce((sum, debtor) => sum + BigInt(safeInteger(debtor.debt, 'Debt')), 0n);
 }

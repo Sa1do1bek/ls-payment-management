@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#102a43">
-  <title>Learning Center | Payment Management</title>
+  <title>Learning Center | Payment &amp; Student Management</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="./css/styles.css" rel="stylesheet">
   <script type="module" src="./js/app.js"></script>
@@ -14,117 +14,317 @@
     <div class="container-xl header-inner">
       <div class="brand-mark" aria-hidden="true">LC</div>
       <div class="header-copy">
-        <p class="eyebrow mb-1">Learning Center · Finance</p>
-        <h1>Payment management</h1>
-        <p class="header-description mb-0">Track monthly tuition balances and record student payments.</p>
+        <p class="eyebrow mb-1">Learning Center · Administration</p>
+        <h1>Management Portal</h1>
+        <p class="header-description mb-0">Manage enrolled students, track monthly tuition balances, and record payments.</p>
       </div>
       <div class="header-badge d-none d-md-flex"><span class="badge-dot" aria-hidden="true"></span> Administration workspace</div>
     </div>
   </header>
 
   <main class="container-xl main-content">
+    <nav class="app-navigation mb-4" aria-label="Main Navigation">
+      <ul class="nav nav-pills" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button id="nav-tab-payments" class="nav-link active" type="button" role="tab" aria-selected="true" aria-controls="view-payments">Payments &amp; Debtors</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button id="nav-tab-students" class="nav-link" type="button" role="tab" aria-selected="false" aria-controls="view-students">Students</button>
+        </li>
+      </ul>
+    </nav>
+
     <div id="notice" class="notice d-none" role="status" aria-live="polite"></div>
 
-    <div class="row g-4 align-items-start">
-      <section class="col-12 col-xl-8" aria-labelledby="debtors-title">
-        <div class="panel debtors-panel">
-          <div class="panel-heading">
+    <!-- Payments & Debtors View -->
+    <div id="view-payments" class="app-view" role="tabpanel" aria-labelledby="nav-tab-payments">
+      <div class="row g-4 align-items-start">
+        <section class="col-12 col-xl-8" aria-labelledby="debtors-title">
+          <div class="panel debtors-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">Monthly overview</p>
+                <h2 id="debtors-title">Outstanding tuition</h2>
+                <p class="section-description">Students with a balance remaining in the selected month.</p>
+              </div>
+            </div>
+
+            <div class="report-toolbar">
+              <div class="month-control">
+                <label for="report-month" class="form-label">Reporting month</label>
+                <input id="report-month" class="form-control" type="month" required aria-describedby="month-help">
+                <div id="month-help" class="form-text">Choose any month to review its payments.</div>
+              </div>
+              <button id="refresh-debtors" type="button" class="btn btn-outline-primary refresh-button">Refresh report</button>
+            </div>
+
+            <div class="summary-grid" aria-label="Report summary">
+              <div class="summary-tile">
+                <span class="summary-label">Students with debt</span>
+                <strong id="debtor-count" class="summary-value">—</strong>
+              </div>
+              <div class="summary-tile total-tile">
+                <span class="summary-label">Total outstanding</span>
+                <strong id="total-debt" class="summary-value">—</strong>
+              </div>
+            </div>
+
+            <div id="debtors-loading" class="state-message" role="status" hidden>
+              <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+              Loading monthly balances…
+            </div>
+            <div id="debtors-error" class="state-message error-message" role="alert" hidden></div>
+            <div id="debtors-empty" class="state-message empty-message" hidden>
+              <span class="empty-symbol" aria-hidden="true">✓</span>
+              <div>
+                <strong>No outstanding payments for the selected month.</strong>
+                <span>Choose another month or refresh the report later.</span>
+              </div>
+            </div>
+
+            <div id="debtors-content" hidden>
+              <div class="table-responsive desktop-debtors">
+                <table class="table debtor-table align-middle mb-0">
+                  <caption class="visually-hidden">Students with outstanding tuition for the selected month</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Student</th>
+                      <th scope="col">Group / contact</th>
+                      <th scope="col" class="text-end">Tuition</th>
+                      <th scope="col" class="text-end">Paid</th>
+                      <th scope="col" class="text-end">Outstanding</th>
+                      <th scope="col"><span class="visually-hidden">Action</span></th>
+                    </tr>
+                  </thead>
+                  <tbody id="debtors-table-body"></tbody>
+                </table>
+              </div>
+              <div id="debtors-cards" class="mobile-debtors"></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="col-12 col-xl-4" aria-labelledby="payment-title">
+          <div class="panel payment-panel" id="payment-panel">
+            <p class="section-kicker">New transaction</p>
+            <h2 id="payment-title">Record a payment</h2>
+            <p class="section-description">Each submission creates a separate payment record.</p>
+
+            <div id="students-status" class="small-status" role="status" aria-live="polite">Loading students…</div>
+
+            <form id="payment-form" novalidate>
+              <div class="mb-3">
+                <label for="payment-student" class="form-label">Student</label>
+                <select id="payment-student" class="form-select" required aria-describedby="student-help">
+                  <option value="">Select a student</option>
+                </select>
+                <div id="student-help" class="form-text">All students are available, including those fully paid.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="payment-amount" class="form-label">Amount <span class="label-unit">UZS</span></label>
+                <input id="payment-amount" class="form-control" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="16" autocomplete="off" placeholder="e.g. 300000" required aria-describedby="amount-help">
+                <div id="amount-help" class="form-text">Positive whole UZS, up to 9,007,199,254,740,991.</div>
+              </div>
+
+              <div class="mb-4">
+                <label for="payment-date" class="form-label">Payment date</label>
+                <input id="payment-date" class="form-control" type="date" required>
+              </div>
+
+              <button id="submit-payment" class="btn btn-primary submit-button" type="submit" disabled>Record payment</button>
+            </form>
+            <p class="payment-note mb-0">Payments apply to the calendar month of their payment date. The reporting month stays as selected.</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Students View -->
+    <div id="view-students" class="app-view d-none" role="tabpanel" aria-labelledby="nav-tab-students" hidden>
+      <section class="panel students-panel" aria-labelledby="students-directory-title">
+        <div class="panel-heading d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div>
+            <p class="section-kicker">Directory &amp; Enrollment</p>
+            <h2 id="students-directory-title">Registered students</h2>
+            <p class="section-description">Register, edit, search, and manage enrolled students and their tuition fees.</p>
+          </div>
+          <button id="btn-open-create-student" type="button" class="btn btn-primary create-student-btn">+ Add student</button>
+        </div>
+
+        <div class="students-toolbar">
+          <div class="search-control">
+            <label for="student-search" class="form-label">Search</label>
+            <input id="student-search" class="form-control" type="search" placeholder="Search by name, phone, or ID…" aria-label="Search students">
+          </div>
+          <div class="group-control">
+            <label for="student-group-filter" class="form-label">Group filter</label>
+            <select id="student-group-filter" class="form-select" aria-label="Filter by group">
+              <option value="">All groups</option>
+            </select>
+          </div>
+          <button id="btn-reset-filters" type="button" class="btn btn-outline-secondary reset-filters-button">Reset filters</button>
+        </div>
+
+        <div class="student-count-bar">
+          Showing <span id="filtered-student-count">0</span> of <span id="total-student-count">0</span> students
+        </div>
+
+        <div id="students-table-loading" class="state-message" role="status" hidden>
+          <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+          Loading students…
+        </div>
+        <div id="students-table-error" class="state-message error-message" role="alert" hidden></div>
+        <div id="students-table-empty" class="state-message empty-message" hidden>
+          <span class="empty-symbol" aria-hidden="true">ℹ</span>
+          <div>
+            <strong>No students registered yet.</strong>
+            <span>Add your first student to begin recording payments and tracking tuition debts.</span>
             <div>
-              <p class="section-kicker">Monthly overview</p>
-              <h2 id="debtors-title">Outstanding tuition</h2>
-              <p class="section-description">Students with a balance remaining in the selected month.</p>
+              <button id="btn-empty-add-student" class="btn btn-sm btn-primary mt-2" type="button">+ Add first student</button>
             </div>
           </div>
-
-          <div class="report-toolbar">
-            <div class="month-control">
-              <label for="report-month" class="form-label">Reporting month</label>
-              <input id="report-month" class="form-control" type="month" required aria-describedby="month-help">
-              <div id="month-help" class="form-text">Choose any month to review its payments.</div>
-            </div>
-            <button id="refresh-debtors" type="button" class="btn btn-outline-primary refresh-button">Refresh report</button>
-          </div>
-
-          <div class="summary-grid" aria-label="Report summary">
-            <div class="summary-tile">
-              <span class="summary-label">Students with debt</span>
-              <strong id="debtor-count" class="summary-value">—</strong>
-            </div>
-            <div class="summary-tile total-tile">
-              <span class="summary-label">Total outstanding</span>
-              <strong id="total-debt" class="summary-value">—</strong>
-            </div>
-          </div>
-
-          <div id="debtors-loading" class="state-message" role="status" hidden>
-            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-            Loading monthly balances…
-          </div>
-          <div id="debtors-error" class="state-message error-message" role="alert" hidden></div>
-          <div id="debtors-empty" class="state-message empty-message" hidden>
-            <span class="empty-symbol" aria-hidden="true">✓</span>
+        </div>
+        <div id="students-table-no-matches" class="state-message empty-message" hidden>
+          <span class="empty-symbol" aria-hidden="true">∅</span>
+          <div>
+            <strong>No students match the active filters.</strong>
+            <span>Try searching for a different name, phone, or ID, or choose a different group.</span>
             <div>
-              <strong>No outstanding payments for the selected month.</strong>
-              <span>Choose another month or refresh the report later.</span>
+              <button id="btn-no-matches-reset" class="btn btn-sm btn-outline-primary mt-2" type="button">Clear filters</button>
             </div>
           </div>
+        </div>
 
-          <div id="debtors-content" hidden>
-            <div class="table-responsive desktop-debtors">
-              <table class="table debtor-table align-middle mb-0">
-                <caption class="visually-hidden">Students with outstanding tuition for the selected month</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Student</th>
-                    <th scope="col">Group / contact</th>
-                    <th scope="col" class="text-end">Tuition</th>
-                    <th scope="col" class="text-end">Paid</th>
-                    <th scope="col" class="text-end">Outstanding</th>
-                    <th scope="col"><span class="visually-hidden">Action</span></th>
-                  </tr>
-                </thead>
-                <tbody id="debtors-table-body"></tbody>
-              </table>
-            </div>
-            <div id="debtors-cards" class="mobile-debtors"></div>
+        <div id="students-table-content" hidden>
+          <div class="table-responsive desktop-students">
+            <table class="table student-table align-middle mb-0">
+              <caption class="visually-hidden">Registered student directory</caption>
+              <thead>
+                <tr>
+                  <th scope="col">ID</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Phone</th>
+                  <th scope="col">Group</th>
+                  <th scope="col" class="text-end">Monthly tuition</th>
+                  <th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody id="students-table-body"></tbody>
+            </table>
           </div>
+          <div id="students-cards" class="mobile-students"></div>
         </div>
       </section>
-
-      <aside class="col-12 col-xl-4" aria-labelledby="payment-title">
-        <div class="panel payment-panel" id="payment-panel">
-          <p class="section-kicker">New transaction</p>
-          <h2 id="payment-title">Record a payment</h2>
-          <p class="section-description">Each submission creates a separate payment record.</p>
-
-          <div id="students-status" class="small-status" role="status" aria-live="polite">Loading students…</div>
-
-          <form id="payment-form" novalidate>
-            <div class="mb-3">
-              <label for="payment-student" class="form-label">Student</label>
-              <select id="payment-student" class="form-select" required aria-describedby="student-help">
-                <option value="">Select a student</option>
-              </select>
-              <div id="student-help" class="form-text">All students are available, including those fully paid.</div>
-            </div>
-
-            <div class="mb-3">
-              <label for="payment-amount" class="form-label">Amount <span class="label-unit">UZS</span></label>
-              <input id="payment-amount" class="form-control" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="16" autocomplete="off" placeholder="e.g. 300000" required aria-describedby="amount-help">
-              <div id="amount-help" class="form-text">Positive whole UZS, up to 9,007,199,254,740,991.</div>
-            </div>
-
-            <div class="mb-4">
-              <label for="payment-date" class="form-label">Payment date</label>
-              <input id="payment-date" class="form-control" type="date" required>
-            </div>
-
-            <button id="submit-payment" class="btn btn-primary submit-button" type="submit" disabled>Record payment</button>
-          </form>
-          <p class="payment-note mb-0">Payments apply to the calendar month of their payment date. The reporting month stays as selected.</p>
-        </div>
-      </aside>
     </div>
   </main>
+
+  <!-- Create Student Modal -->
+  <div id="create-student-modal" class="custom-modal d-none" role="dialog" aria-modal="true" aria-labelledby="create-modal-title" hidden>
+    <div class="custom-modal-backdrop"></div>
+    <div class="custom-modal-dialog">
+      <div class="custom-modal-content">
+        <div class="custom-modal-header">
+          <h2 id="create-modal-title" class="custom-modal-title">Register new student</h2>
+          <button type="button" class="btn-close custom-modal-close" aria-label="Close dialog"></button>
+        </div>
+        <form id="create-student-form" novalidate>
+          <div class="custom-modal-body">
+            <div id="create-student-error" class="alert alert-danger py-2 d-none" role="alert"></div>
+            <div class="mb-3">
+              <label for="create-student-name" class="form-label">Student name</label>
+              <input id="create-student-name" class="form-control" type="text" maxlength="150" required placeholder="e.g. Ali Valiyev" autocomplete="off">
+              <div class="form-text">Full name, up to 150 characters.</div>
+            </div>
+            <div class="mb-3">
+              <label for="create-student-phone" class="form-label">Phone number</label>
+              <input id="create-student-phone" class="form-control" type="tel" maxlength="30" required placeholder="e.g. +998901234567" autocomplete="off">
+              <div class="form-text">Contact phone, up to 30 characters.</div>
+            </div>
+            <div class="mb-3">
+              <label for="create-student-group" class="form-label">Group name</label>
+              <input id="create-student-group" class="form-control" type="text" maxlength="100" required placeholder="e.g. English B2" autocomplete="off">
+              <div class="form-text">Assigned course or group, up to 100 characters.</div>
+            </div>
+            <div class="mb-3">
+              <label for="create-student-fee" class="form-label">Monthly tuition <span class="label-unit">UZS</span></label>
+              <input id="create-student-fee" class="form-control" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="16" required placeholder="e.g. 800000" autocomplete="off">
+              <div class="form-text">Positive whole UZS, up to 9,007,199,254,740,991.</div>
+            </div>
+          </div>
+          <div class="custom-modal-footer">
+            <button type="button" class="btn btn-outline-secondary custom-modal-cancel">Cancel</button>
+            <button id="submit-create-student" type="submit" class="btn btn-primary">Create student</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Student Modal -->
+  <div id="edit-student-modal" class="custom-modal d-none" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title" hidden>
+    <div class="custom-modal-backdrop"></div>
+    <div class="custom-modal-dialog">
+      <div class="custom-modal-content">
+        <div class="custom-modal-header">
+          <h2 id="edit-modal-title" class="custom-modal-title">Edit student</h2>
+          <button type="button" class="btn-close custom-modal-close" aria-label="Close dialog"></button>
+        </div>
+        <form id="edit-student-form" novalidate>
+          <input type="hidden" id="edit-student-id">
+          <div class="custom-modal-body">
+            <div id="edit-student-error" class="alert alert-danger py-2 d-none" role="alert"></div>
+            <div class="mb-3">
+              <label for="edit-student-name" class="form-label">Student name</label>
+              <input id="edit-student-name" class="form-control" type="text" maxlength="150" required autocomplete="off">
+              <div class="form-text">Full name, up to 150 characters.</div>
+            </div>
+            <div class="mb-3">
+              <label for="edit-student-phone" class="form-label">Phone number</label>
+              <input id="edit-student-phone" class="form-control" type="tel" maxlength="30" required autocomplete="off">
+              <div class="form-text">Contact phone, up to 30 characters.</div>
+            </div>
+            <div class="mb-3">
+              <label for="edit-student-group" class="form-label">Group name</label>
+              <input id="edit-student-group" class="form-control" type="text" maxlength="100" required autocomplete="off">
+              <div class="form-text">Assigned course or group, up to 100 characters.</div>
+            </div>
+            <div class="mb-3">
+              <label for="edit-student-fee" class="form-label">Monthly tuition <span class="label-unit">UZS</span></label>
+              <input id="edit-student-fee" class="form-control" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="16" required autocomplete="off">
+              <div class="form-text">Positive whole UZS. Note: changes affect debtor calculations for the current fee model.</div>
+            </div>
+          </div>
+          <div class="custom-modal-footer">
+            <button type="button" class="btn btn-outline-secondary custom-modal-cancel">Cancel</button>
+            <button id="submit-edit-student" type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-student-modal" class="custom-modal d-none" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title" hidden>
+    <div class="custom-modal-backdrop"></div>
+    <div class="custom-modal-dialog">
+      <div class="custom-modal-content">
+        <div class="custom-modal-header">
+          <h2 id="delete-modal-title" class="custom-modal-title text-danger">Confirm student deletion</h2>
+          <button type="button" class="btn-close custom-modal-close" aria-label="Close dialog"></button>
+        </div>
+        <div class="custom-modal-body">
+          <p>Are you sure you want to delete this student from the system?</p>
+          <div id="delete-student-details" class="delete-info-box mb-3"></div>
+          <div id="delete-student-error" class="alert alert-danger py-2 d-none" role="alert"></div>
+          <p class="text-muted small mb-0">Students with recorded payment history cannot be deleted. This action cannot be undone.</p>
+        </div>
+        <div class="custom-modal-footer">
+          <button type="button" class="btn btn-outline-secondary custom-modal-cancel">Cancel</button>
+          <button id="submit-delete-student" type="button" class="btn btn-danger">Delete student</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

@@ -8,7 +8,7 @@ This repository contains the Spring Boot API and an independent frontend for man
 extra/
 ├── backend/              Spring Boot application, Maven Wrapper, Flyway, tests
 ├── frontend/             HTML5, Bootstrap 5, Vanilla JavaScript, local static server
-├── qa/                   Disposable real-PostgreSQL API regression script
+├── qa/                   Disposable real-PostgreSQL regression and browser test scripts
 ├── docker-compose.yml    Local PostgreSQL
 ├── .env.example           Safe local configuration example
 ├── .gitignore
@@ -90,8 +90,30 @@ The expected result is HTTP 200 with `{"status":"UP"}`.
 | Payment creation and history | `POST /api/payments` and `GET /api/students/{studentId}/payments` |
 | Monthly debtor endpoint | `GET /api/debtors?month=YYYY-MM` and compatibility route `/debtors` |
 | Telegram bot or mobile-friendly web interface | Mobile-friendly web interface at `http://127.0.0.1:5500`; no Telegram bot |
+| Student management frontend | Interactive browser directory, creation, full-replacement editing, safe deletion, search, and group filtering |
 | Setup instructions | This README and `frontend/README.md` |
 | Improvements with one more week | Listed at the end of this README |
+
+## Student Management Frontend
+
+The web frontend at `http://127.0.0.1:5500` integrates student lifecycle management directly alongside the payment and debtor views:
+
+- **Navigation**: Clean top tabs switch seamlessly between **Payments & Debtors** and **Students** without full-page reloads.
+- **Directory and Listing**: Shows Student ID, Name, Phone, Group, Monthly tuition in UZS, and action buttons. Converts to compact mobile cards below 992px. DOM text APIs ensure safe rendering of names and group text containing HTML characters.
+- **Student Creation**: Accessible modal form (`POST /api/students`). Validates name (max 150), phone (max 30), group (max 100), and positive whole safe-integer monthly fee in UZS. Prevents duplicate submissions while in flight. Newly created students immediately become selectable in the payment form and trigger debtor recalculation for the active reporting month.
+- **Student Editing**: Accessible modal form (`PUT /api/students/{id}`). Prepopulates existing details. On success, updates the table, refreshes payment dropdown options (preserving valid selections), and recalculates monthly debtor totals to reflect the new tuition fee.
+- **Student Deletion**: Protected deletion modal (`DELETE /api/students/{id}`). Deleting a student without payment records returns HTTP 204, removes the student from directory and payment dropdowns, and refreshes the debtor summary. If the student has recorded payment history, the backend returns HTTP 409 conflict: the modal displays the backend message, explains that financial records prevent deletion, and leaves the student intact.
+- **Search and Filtering**: Real-time client-side search across Student Name, Phone, and ID (case-insensitive), combinable with a dynamic group dropdown derived from available students. Clear distinctions are made between an empty directory and zero search matches, with a one-click filter reset.
+
+Run automated frontend unit tests with:
+```powershell
+node --test .\frontend\tests\api.test.mjs
+```
+
+Run real-browser end-to-end integration with:
+```powershell
+node .\qa\browser-test.mjs
+```
 
 ## Student API
 

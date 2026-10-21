@@ -3,6 +3,7 @@
 param([string]$BaseUrl = 'http://localhost:8080')
 
 $ErrorActionPreference = 'Stop'
+[System.Net.ServicePointManager]::DefaultConnectionLimit = 100
 $createdStudents = [System.Collections.Generic.List[long]]::new()
 $createdPayments = [System.Collections.Generic.List[long]]::new()
 $databaseName = if ($env:DB_NAME) { $env:DB_NAME } else { 'payment_management' }
@@ -17,14 +18,39 @@ function Check([bool]$condition, [string]$description) {
 }
 
 function Api([string]$method, [string]$path, $body = $null) {
-    $arguments = @{ Method = $method; Uri = "$BaseUrl$path"; SkipHttpErrorCheck = $true }
+    $hasSkip = (Get-Command Invoke-WebRequest).Parameters.ContainsKey('SkipHttpErrorCheck')
+    $hasUseBasic = (Get-Command Invoke-WebRequest).Parameters.ContainsKey('UseBasicParsing')
+    $arguments = @{ Method = $method; Uri = "$BaseUrl$path" }
+    if ($hasSkip) { $arguments['SkipHttpErrorCheck'] = $true }
+    if ($hasUseBasic) { $arguments['UseBasicParsing'] = $true }
     if ($null -ne $body) {
         $arguments.ContentType = 'application/json'
         $arguments.Body = ConvertTo-Json -InputObject $body -Compress
     }
-    $response = Invoke-WebRequest @arguments
-    $data = if ($response.Content) { ConvertFrom-Json -InputObject $response.Content } else { $null }
-    return @{ Status = [int]$response.StatusCode; Data = $data; Text = $response.Content; Headers = $response.Headers }
+    try {
+        $response = Invoke-WebRequest @arguments
+        $text = $response.Content
+        $status = [int]$response.StatusCode
+        $headers = $response.Headers
+        $data = if ($text) { ConvertFrom-Json -InputObject $text } else { $null }
+        if ($response -is [System.IDisposable]) { $response.Dispose() }
+        return @{ Status = $status; Data = $data; Text = $text; Headers = $headers }
+    } catch [System.Net.WebException] {
+        $resp = $_.Exception.Response
+        if ($null -ne $resp) {
+            $stream = $resp.GetResponseStream()
+            $reader = [System.IO.StreamReader]::new($stream)
+            $text = $reader.ReadToEnd()
+            $reader.Close()
+            $stream.Close()
+            $status = [int]$resp.StatusCode
+            $headers = $resp.Headers
+            $resp.Close()
+            $data = if ($text) { ConvertFrom-Json -InputObject $text } else { $null }
+            return @{ Status = $status; Data = $data; Text = $text; Headers = $headers }
+        }
+        throw
+    }
 }
 
 function New-Student([string]$suffix, [long]$fee) {

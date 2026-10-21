@@ -50,6 +50,24 @@ class FrontendCorsTest {
     }
 
     @Test
+    void studentPreflightAllowsPutAndDeleteFromFrontend() throws Exception {
+        mvc.perform(options("/api/students/1")
+                        .header("Origin", "http://localhost:5500")
+                        .header("Access-Control-Request-Method", "PUT")
+                        .header("Access-Control-Request-Headers", "content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5500"))
+                .andExpect(header().string("Access-Control-Allow-Methods", containsString("PUT")));
+
+        mvc.perform(options("/api/students/1")
+                        .header("Origin", "http://127.0.0.1:5500")
+                        .header("Access-Control-Request-Method", "DELETE"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://127.0.0.1:5500"))
+                .andExpect(header().string("Access-Control-Allow-Methods", containsString("DELETE")));
+    }
+
+    @Test
     void paymentPostCarriesCorsHeader() throws Exception {
         mvc.perform(post("/api/payments")
                         .header("Origin", "http://localhost:5500")

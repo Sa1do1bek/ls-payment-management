@@ -79,7 +79,37 @@ body {
 }
 .badge-dot { width: 7px; height: 7px; border-radius: 50%; background: #90d4c5; }
 
-.main-content { padding-top: 2rem; padding-bottom: 3rem; }
+.main-content { padding-top: 1.5rem; padding-bottom: 3rem; }
+
+/* Navigation Pills */
+.app-navigation {
+  padding-bottom: .25rem;
+}
+.app-navigation .nav-pills .nav-link {
+  padding: .55rem 1.35rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: #415b73;
+  font-size: .92rem;
+  font-weight: 700;
+  transition: all .15s ease;
+}
+.app-navigation .nav-pills .nav-link.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(23, 109, 136, .22);
+}
+.app-navigation .nav-pills .nav-link:hover:not(.active) {
+  border-color: #b7ccd9;
+  background: #edf4f9;
+  color: var(--accent-dark);
+}
+.app-navigation .nav-pills .nav-link:focus-visible {
+  box-shadow: 0 0 0 .23rem rgba(23, 109, 136, .2);
+}
+
 .panel {
   overflow: hidden;
   min-width: 0;
@@ -88,13 +118,12 @@ body {
   background: #fff;
   box-shadow: 0 10px 32px rgba(18, 47, 71, .055);
 }
-.debtors-panel { padding: 1.65rem; }
-.payment-panel { padding: 1.65rem; }
+.debtors-panel, .payment-panel, .students-panel { padding: 1.65rem; }
 .section-kicker { margin-bottom: .35rem; color: var(--accent); }
 .panel h2 { margin: 0; font-size: 1.45rem; font-weight: 750; letter-spacing: -.025em; }
 .section-description { margin: .4rem 0 0; color: var(--muted); font-size: .93rem; }
 
-.report-toolbar {
+.report-toolbar, .students-toolbar {
   display: flex;
   align-items: end;
   justify-content: space-between;
@@ -105,7 +134,23 @@ body {
   border-radius: 13px;
   background: #f9fbfc;
 }
+.students-toolbar {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+.search-control { flex: 1 1 240px; min-width: 200px; }
+.group-control { flex: 0 1 200px; min-width: 170px; }
 .month-control { min-width: 200px; }
+.reset-filters-button { min-height: 43px; }
+
+.student-count-bar {
+  margin-bottom: 1.1rem;
+  color: var(--muted);
+  font-size: .83rem;
+  font-weight: 650;
+}
+
 .form-label { margin-bottom: .4rem; color: #314b62; font-size: .85rem; font-weight: 700; }
 .form-text { color: #718397; font-size: .76rem; }
 .form-control, .form-select {
@@ -145,16 +190,18 @@ body {
 .empty-message span:not(.empty-symbol) { margin-top: .16rem; font-size: .83rem; }
 .empty-symbol { display: grid; place-items: center; flex: 0 0 26px; width: 26px; height: 26px; border-radius: 50%; background: #cce8e0; font-weight: 800; }
 
-.debtor-table { font-size: .83rem; }
-.debtor-table th { padding: .8rem .45rem; border-bottom: 1px solid var(--line); color: #64788b; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
-.debtor-table td { padding: .9rem .45rem; border-bottom-color: #edf1f5; vertical-align: middle; }
-.debtor-table tbody tr:last-child td { border-bottom: 0; }
+.debtor-table, .student-table { font-size: .83rem; }
+.debtor-table th, .student-table th { padding: .8rem .45rem; border-bottom: 1px solid var(--line); color: #64788b; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.debtor-table td, .student-table td { padding: .9rem .45rem; border-bottom-color: #edf1f5; vertical-align: middle; }
+.debtor-table tbody tr:last-child td, .student-table tbody tr:last-child td { border-bottom: 0; }
 .student-name { display: block; color: var(--ink); font-weight: 750; }
 .student-id, .secondary-text { display: block; color: var(--muted); font-size: .75rem; }
+.student-id-badge { display: inline-block; padding: .15rem .45rem; border-radius: 6px; background: #eef3f7; color: #44596b; font-size: .76rem; font-weight: 750; }
+.badge-group { display: inline-block; padding: .2rem .55rem; border-radius: 999px; background: #e8f1f7; color: var(--accent-dark); font-size: .79rem; font-weight: 650; }
 .money-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .debt-amount { color: #a04f2a; font-weight: 800; }
 .quick-pay { white-space: nowrap; font-size: .74rem; }
-.mobile-debtors { display: none; }
+.mobile-debtors, .mobile-students { display: none; }
 
 .small-status { margin: 1.25rem 0 .95rem; color: var(--muted); font-size: .82rem; }
 .small-status.error { color: #a73b3b; }
@@ -167,16 +214,89 @@ body {
 .notice-error { border-color: #ecc6c6; background: #fff0f0; color: #953b3b; }
 .notice-warning { border-color: #f0d8a7; background: #fff8e7; color: #795820; }
 
+/* Custom Modal Dialogs */
+.custom-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.custom-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 42, 67, .65);
+  backdrop-filter: blur(2px);
+  z-index: 1051;
+}
+.custom-modal-dialog {
+  position: relative;
+  z-index: 1052;
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+}
+.custom-modal-content {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(16, 42, 67, .22);
+}
+.custom-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+  background: #fdfefe;
+}
+.custom-modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 750;
+  letter-spacing: -.02em;
+  color: var(--ink);
+}
+.custom-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+.custom-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: .75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--line);
+  background: #f9fbfc;
+}
+.delete-info-box {
+  padding: .95rem 1.1rem;
+  border: 1px solid #fed7d7;
+  border-radius: 10px;
+  background: #fff5f5;
+  color: #742a2a;
+  font-size: .88rem;
+}
+
 @media (max-width: 991.98px) {
-  .desktop-debtors { display: none; }
-  .mobile-debtors { display: grid; gap: .85rem; }
-  .debtor-card { padding: 1rem; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+  .desktop-debtors, .desktop-students { display: none; }
+  .mobile-debtors, .mobile-students { display: grid; gap: .85rem; }
+  .debtor-card, .student-card { padding: 1rem; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
   .card-top { display: flex; justify-content: space-between; gap: .7rem; }
-  .card-debt { color: #a04f2a; font-size: 1.05rem; font-weight: 800; text-align: right; white-space: nowrap; }
-  .card-debt-label { display: block; color: var(--muted); font-size: .68rem; font-weight: 700; text-transform: uppercase; }
+  .card-debt, .card-fee { color: #a04f2a; font-size: 1.05rem; font-weight: 800; text-align: right; white-space: nowrap; }
+  .card-fee { color: var(--accent); }
+  .card-debt-label, .card-fee-label { display: block; color: var(--muted); font-size: .68rem; font-weight: 700; text-transform: uppercase; }
   .card-details { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; margin: .9rem 0; padding: .8rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .detail-label { display: block; color: var(--muted); font-size: .7rem; }
   .detail-value { display: block; overflow-wrap: anywhere; font-size: .84rem; font-weight: 650; }
+  .student-card-actions { display: flex; gap: .6rem; justify-content: flex-end; }
 }
 
 @media (max-width: 575.98px) {
@@ -185,13 +305,16 @@ body {
   .header-copy h1 { font-size: 1.6rem; }
   .header-description { font-size: .82rem; }
   .main-content { padding-top: 1.15rem; }
-  .debtors-panel, .payment-panel { padding: 1.1rem; border-radius: 15px; }
-  .report-toolbar { display: block; margin: 1.25rem 0; padding: .95rem; }
-  .month-control { min-width: 0; }
-  .refresh-button { width: 100%; margin-top: .9rem; }
+  .debtors-panel, .payment-panel, .students-panel { padding: 1.1rem; border-radius: 15px; }
+  .report-toolbar, .students-toolbar { display: block; margin: 1.25rem 0; padding: .95rem; }
+  .month-control, .search-control, .group-control { min-width: 0; width: 100%; }
+  .group-control { margin-top: .75rem; }
+  .refresh-button, .reset-filters-button, .create-student-btn { width: 100%; margin-top: .9rem; }
   .summary-grid { gap: .55rem; }
   .summary-tile { padding: .8rem; }
   .summary-value { font-size: 1.23rem; }
   .card-top { flex-wrap: wrap; }
-  .card-debt { text-align: left; }
+  .card-debt, .card-fee { text-align: left; }
+  .student-card-actions { justify-content: stretch; }
+  .student-card-actions .btn { flex: 1; }
 }
