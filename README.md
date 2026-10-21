@@ -5,7 +5,7 @@ This repository contains the Spring Boot API and an independent frontend for man
 ## Project structure
 
 ```text
-extra/
+ls-payment-management/
 ├── backend/              Spring Boot application, Maven Wrapper, Flyway, tests
 ├── frontend/             HTML5, Bootstrap 5, Vanilla JavaScript, local static server
 ├── qa/                   Disposable real-PostgreSQL regression and browser test scripts
@@ -56,7 +56,7 @@ In a third PowerShell window at the repository root, serve the frontend and open
 node .\frontend\serve.mjs
 ```
 
-Open `http://127.0.0.1:5500` in your browser. The frontend calls the backend at `http://localhost:8080`, configured in `frontend/js/config.js`. The backend allows the documented local frontend origins (`localhost:5500` and `127.0.0.1:5500`) to make GET and POST requests. The pinned Bootstrap CDN stylesheet requires internet access. Do not use `file://` to open the page.
+Open `http://127.0.0.1:5500` in your browser. The frontend calls the backend at `http://localhost:8080`, configured in `frontend/js/config.js`. The backend allows the documented local frontend origins (`localhost:5500` and `127.0.0.1:5500`) to make GET, POST, PUT, and DELETE requests. The pinned Bootstrap CDN stylesheet requires internet access. Do not use `file://` to open the page.
 
 ## Test and verify
 
