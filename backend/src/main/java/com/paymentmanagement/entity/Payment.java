@@ -28,8 +28,9 @@ public class Payment {
     private Student student;
 
     @Positive
+    @NotNull
     @Column(nullable = false)
-    private long amount;
+    private Long amount;
 
     @NotNull
     @Column(name = "payment_date", nullable = false)
@@ -38,7 +39,7 @@ public class Payment {
     protected Payment() {
     }
 
-    public Payment(Student student, long amount, LocalDate paymentDate) {
+    public Payment(Student student, Long amount, LocalDate paymentDate) {
         this.student = student;
         this.amount = amount;
         this.paymentDate = paymentDate;
@@ -52,7 +53,7 @@ public class Payment {
         return student;
     }
 
-    public long getAmount() {
+    public Long getAmount() {
         return amount;
     }
 

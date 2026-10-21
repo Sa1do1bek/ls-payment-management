@@ -1,6 +1,6 @@
 # Educational Center Payment Management
 
-This repository contains the backend foundation and student management REST API for an educational center payment management system. Payment operations and the frontend belong to later tasks.
+This repository contains the backend foundation, student management API, and payment recording/history API for an educational center payment management system. Monthly debt calculations and the frontend belong to later tasks.
 
 ## Project structure
 
@@ -41,7 +41,7 @@ Flyway applies `backend/src/main/resources/db/migration/V1__create_students_and_
 
 ## Test and verify
 
-From `backend/`, run `.\mvnw.cmd test` for the automated health, student service, and student controller tests or `.\mvnw.cmd clean verify` to compile, test, and package the backend. These tests use MockMvc and Mockito and need no database. Database migration and JPA validation run against PostgreSQL when the backend starts.
+From `backend/`, run `.\mvnw.cmd test` for the automated health, student, and payment tests or `.\mvnw.cmd clean verify` to compile, test, and package the backend. These tests use MockMvc and Mockito and need no database. Database migration and JPA validation run against PostgreSQL when the backend starts.
 
 With the backend running, open another PowerShell window and run:
 
@@ -99,3 +99,50 @@ Invoke-WebRequest -Method Delete -Uri "$base/$($student.id)" | Select-Object Sta
 ```
 
 A student with payment history cannot be deleted. The API returns 409 and retains both the student and payments.
+
+## Payment API
+
+| Method | Path | Success | Other important responses |
+| --- | --- | --- | --- |
+| POST | `/api/payments` | 201 Created with the saved payment | 400 invalid request; 404 student not found |
+| GET | `/api/students/{studentId}/payments` | 200 array, newest date first then highest ID | 400 invalid student ID; 404 student not found |
+
+POST requires a positive `studentId`, a positive whole-number `amount` in UZS, and a valid ISO date (`YYYY-MM-DD`) in `paymentDate`. A student may have multiple independent payments on the same day. Future dates and amounts above the monthly fee are allowed. The API does not combine records or assign them to billing months.
+
+Example POST body:
+
+```json
+{"studentId":1,"amount":300000,"paymentDate":"2026-10-21"}
+```
+
+Example 201 response body:
+
+```json
+{"id":2,"studentId":1,"amount":300000,"paymentDate":"2026-10-21"}
+```
+
+Example payment history, ordered by `paymentDate` descending and then `id` descending:
+
+```json
+[
+  {"id":2,"studentId":1,"amount":300000,"paymentDate":"2026-10-21"},
+  {"id":1,"studentId":1,"amount":200000,"paymentDate":"2026-10-05"}
+]
+```
+
+An existing student with no payments receives `[]`. Validation failures return the same `status`, `error`, `message`, and `path` error structure as the student API.
+
+To verify with a disposable student in PowerShell while the backend is running:
+
+```powershell
+$base = 'http://localhost:8080'
+$studentBody = @{ name = 'Payment Demo'; phone = '+998901234567'; groupName = 'English B2'; monthlyFee = 800000 } | ConvertTo-Json
+$student = Invoke-RestMethod -Method Post -Uri "$base/api/students" -ContentType 'application/json' -Body $studentBody
+$first = @{ studentId = $student.id; amount = 200000; paymentDate = '2026-10-05' } | ConvertTo-Json
+$second = @{ studentId = $student.id; amount = 300000; paymentDate = '2026-10-21' } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "$base/api/payments" -ContentType 'application/json' -Body $first
+Invoke-RestMethod -Method Post -Uri "$base/api/payments" -ContentType 'application/json' -Body $second
+Invoke-RestMethod -Method Get -Uri "$base/api/students/$($student.id)/payments"
+```
+
+Payment deletion is not part of this API. Remove only your disposable test records directly in PostgreSQL when cleanup is needed, then delete the test student through the student API.
